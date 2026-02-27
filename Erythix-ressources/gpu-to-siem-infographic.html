@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>De la GPU au SIEM — La chaîne d'observabilité IA</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Outfit:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep: #0a0b0f;
+    --bg-card: #12141c;
+    --bg-card-hover: #181b26;
+    --border: #1e2233;
+    --cyan: #00e5ff;
+    --cyan-dim: #00e5ff33;
+    --magenta: #ff2d7b;
+    --magenta-dim: #ff2d7b33;
+    --amber: #ffb300;
+    --amber-dim: #ffb30033;
+    --green: #00e676;
+    --green-dim: #00e67633;
+    --purple: #b388ff;
+    --purple-dim: #b388ff33;
+    --red: #ff5252;
+    --red-dim: #ff525233;
+    --text: #e8eaf6;
+    --text-dim: #7880a0;
+    --text-muted: #4a5070;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg-deep);
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Subtle grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 60px 60px;
+    opacity: 0.15;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 24px 60px;
+  }
+
+  /* ─── HEADER ─── */
+  .header {
+    text-align: center;
+    margin-bottom: 56px;
+    animation: fadeInDown 0.8s ease-out;
+  }
+
+  .header .tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--cyan);
+    border: 1px solid var(--cyan-dim);
+    padding: 6px 18px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+    background: var(--cyan-dim);
+  }
+
+  .header h1 {
+    font-size: clamp(28px, 5vw, 52px);
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -1px;
+    margin-bottom: 10px;
+  }
+
+  .header h1 .accent-cyan { color: var(--cyan); }
+  .header h1 .accent-magenta { color: var(--magenta); }
+
+  .header .subtitle {
+    font-size: 16px;
+    color: var(--text-dim);
+    font-weight: 300;
+    max-width: 620px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* ─── CHAIN ─── */
+  .chain {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+  }
+
+  /* Vertical connector line */
+  .chain::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(
+      to bottom,
+      var(--cyan),
+      var(--green),
+      var(--amber),
+      var(--purple),
+      var(--magenta),
+      var(--red)
+    );
+    opacity: 0.25;
+    transform: translateX(-50%);
+    z-index: 0;
+  }
+
+  /* ─── STEP ─── */
+  .step {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 0;
+    position: relative;
+    z-index: 1;
+    opacity: 0;
+    animation: fadeIn 0.6s ease-out forwards;
+  }
+
+  .step:nth-child(1) { animation-delay: 0.1s; }
+  .step:nth-child(2) { animation-delay: 0.25s; }
+  .step:nth-child(3) { animation-delay: 0.4s; }
+  .step:nth-child(4) { animation-delay: 0.55s; }
+  .step:nth-child(5) { animation-delay: 0.7s; }
+  .step:nth-child(6) { animation-delay: 0.85s; }
+
+  /* Center node */
+  .node {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    position: relative;
+    z-index: 2;
+    flex-shrink: 0;
+    transition: transform 0.3s ease;
+  }
+
+  .node:hover {
+    transform: scale(1.15);
+  }
+
+  .node::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 1px solid;
+    opacity: 0.3;
+    animation: pulse-ring 3s ease-in-out infinite;
+  }
+
+  /* Color variants */
+  .step--gpu .node { background: var(--cyan-dim); border: 2px solid var(--cyan); box-shadow: 0 0 30px var(--cyan-dim); }
+  .step--gpu .node::after { border-color: var(--cyan); }
+
+  .step--inference .node { background: var(--green-dim); border: 2px solid var(--green); box-shadow: 0 0 30px var(--green-dim); }
+  .step--inference .node::after { border-color: var(--green); }
+
+  .step--collect .node { background: var(--amber-dim); border: 2px solid var(--amber); box-shadow: 0 0 30px var(--amber-dim); }
+  .step--collect .node::after { border-color: var(--amber); }
+
+  .step--store .node { background: var(--purple-dim); border: 2px solid var(--purple); box-shadow: 0 0 30px var(--purple-dim); }
+  .step--store .node::after { border-color: var(--purple); }
+
+  .step--rules .node { background: var(--magenta-dim); border: 2px solid var(--magenta); box-shadow: 0 0 30px var(--magenta-dim); }
+  .step--rules .node::after { border-color: var(--magenta); }
+
+  .step--siem .node { background: var(--red-dim); border: 2px solid var(--red); box-shadow: 0 0 30px var(--red-dim); }
+  .step--siem .node::after { border-color: var(--red); }
+
+  /* Arrow between steps */
+  .arrow-down {
+    display: flex;
+    justify-content: center;
+    padding: 6px 0;
+    grid-column: 2;
+  }
+
+  .arrow-down svg {
+    opacity: 0.35;
+  }
+
+  /* ─── CARDS ─── */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 24px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card:hover {
+    background: var(--bg-card-hover);
+    transform: translateY(-2px);
+  }
+
+  .card--left {
+    text-align: right;
+    margin-right: 20px;
+  }
+
+  .card--right {
+    text-align: left;
+    margin-left: 20px;
+  }
+
+  .card .card-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+
+  .step--gpu .card-label { color: var(--cyan); }
+  .step--inference .card-label { color: var(--green); }
+  .step--collect .card-label { color: var(--amber); }
+  .step--store .card-label { color: var(--purple); }
+  .step--rules .card-label { color: var(--magenta); }
+  .step--siem .card-label { color: var(--red); }
+
+  .card h3 {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    line-height: 1.3;
+  }
+
+  .card p {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.55;
+    font-weight: 300;
+  }
+
+  .card .tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .card--left .tools { justify-content: flex-end; }
+
+  .card .tool-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  /* Metrics highlight */
+  .metrics {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+  }
+
+  .card--left .metrics { justify-content: flex-end; }
+
+  .metric {
+    text-align: center;
+  }
+
+  .card--left .metric { text-align: right; }
+  .card--right .metric { text-align: left; }
+
+  .metric-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .step--gpu .metric-value { color: var(--cyan); }
+  .step--inference .metric-value { color: var(--green); }
+  .step--collect .metric-value { color: var(--amber); }
+  .step--store .metric-value { color: var(--purple); }
+  .step--rules .metric-value { color: var(--magenta); }
+  .step--siem .metric-value { color: var(--red); }
+
+  .metric-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 2px;
+  }
+
+  /* ─── BOTTOM BANNER ─── */
+  .banner {
+    margin-top: 56px;
+    background: linear-gradient(135deg, var(--bg-card), #1a1d2e);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+    animation: fadeIn 0.6s ease-out 1s forwards;
+    opacity: 0;
+  }
+
+  .banner-text h3 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .banner-text p {
+    color: var(--text-dim);
+    font-size: 14px;
+    font-weight: 300;
+  }
+
+  .banner-stats {
+    display: flex;
+    gap: 32px;
+  }
+
+  .banner-stat {
+    text-align: center;
+  }
+
+  .banner-stat .val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 26px;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--cyan), var(--magenta));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .banner-stat .lbl {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-top: 2px;
+  }
+
+  /* ─── FOOTER ─── */
+  .footer {
+    text-align: center;
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    animation: fadeIn 0.6s ease-out 1.1s forwards;
+    opacity: 0;
+  }
+
+  .footer .brand {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+  }
+
+  .footer .brand span { color: var(--cyan); font-weight: 700; }
+
+  .footer .links {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 300;
+  }
+
+  /* ─── ANIMATIONS ─── */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pulse-ring {
+    0%, 100% { opacity: 0.2; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.08); }
+  }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 800px) {
+    .chain::before { left: 36px; }
+
+    .step {
+      grid-template-columns: 72px 1fr;
+      grid-template-rows: auto;
+      gap: 0;
+    }
+
+    .arrow-down {
+      grid-column: 1;
+      justify-content: center;
+      padding: 4px 0;
+    }
+
+    .node { width: 56px; height: 56px; font-size: 22px; }
+
+    .card--left,
+    .card--right {
+      text-align: left;
+      margin: 0 0 0 16px;
+      grid-column: 2;
+    }
+
+    .card--left .tools,
+    .card--left .metrics {
+      justify-content: flex-start;
+    }
+
+    .card--left .metric { text-align: left; }
+
+    /* Hide the right card on mobile, merge info */
+    .card--right.hide-mobile { display: none; }
+
+    .banner { flex-direction: column; text-align: center; }
+    .banner-stats { justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="tag">Infographie — AI Observability</div>
+    <h1>De la <span class="accent-cyan">GPU</span> au <span class="accent-magenta">SIEM</span></h1>
+    <p class="subtitle">
+      La chaîne complète d'observabilité IA — 6 couches critiques entre la métrique hardware et l'alerte sécurité.
+    </p>
+  </header>
+
+  <!-- CHAIN -->
+  <div class="chain">
+
+    <!-- STEP 1 — GPU -->
+    <div class="step step--gpu">
+      <div class="card card--left">
+        <div class="card-label">Couche 01 — Hardware</div>
+        <h3>GPU & Infrastructure</h3>
+        <p>Captation des métriques bas niveau : utilisation GPU, mémoire VRAM, température, consommation énergétique, bande passante NVLink/PCIe.</p>
+        <div class="tools">
+          <span class="tool-tag">DCGM Exporter</span>
+          <span class="tool-tag">nvidia-smi</span>
+          <span class="tool-tag">IPMI</span>
+        </div>
+      </div>
+      <div class="node">⬡</div>
+      <div class="card card--right">
+        <div class="card-label">Métriques clés</div>
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-value">GPU%</div>
+            <div class="metric-label">Utilisation</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value">VRAM</div>
+            <div class="metric-label">Mémoire</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value">W/h</div>
+            <div class="metric-label">Énergie</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-down">
+      <svg width="24" height="32" viewBox="0 0 24 32" fill="none"><path d="M12 0v28m0 0l-7-7m7 7l7-7" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+
+    <!-- STEP 2 — INFERENCE -->
+    <div class="step step--inference">
+      <div class="card card--left">
+        <div class="card-label">Métriques clés</div>
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-value">p99</div>
+            <div class="metric-label">Latence</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value">tok/s</div>
+            <div class="metric-label">Débit</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value">drift</div>
+            <div class="metric-label">Data Drift</div>
+          </div>
+        </div>
+      </div>
+      <div class="node">⚙</div>
+      <div class="card card--right">
+        <div class="card-label">Couche 02 — Modèle</div>
+        <h3>AI Inference Engine</h3>
+        <p>Monitoring des performances d'inférence, détection de data drift, suivi des tokens/sec, latence par requête et taux d'erreur du modèle.</p>
+        <div class="tools">
+          <span class="tool-tag">vLLM metrics</span>
+          <span class="tool-tag">Triton Server</span>
+          <span class="tool-tag">MLflow</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-down">
+      <svg width="24" height="32" viewBox="0 0 24 32" fill="none"><path d="M12 0v28m0 0l-7-7m7 7l7-7" stroke="var(--green)" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+
+    <!-- STEP 3 — COLLECTORS -->
+    <div class="step step--collect">
+      <div class="card card--left">
+        <div class="card-label">Couche 03 — Collecte</div>
+        <h3>Agents & Collectors</h3>
+        <p>Normalisation et routage des signaux (métriques, logs, traces) via des pipelines standardisés. Point d'unification des flux hétérogènes.</p>
+        <div class="tools">
+          <span class="tool-tag">OpenTelemetry</span>
+          <span class="tool-tag">vmagent</span>
+          <span class="tool-tag">Fluent Bit</span>
+          <span class="tool-tag">Telegraf</span>
+        </div>
+      </div>
+      <div class="node">◈</div>
+      <div class="card card--right">
+        <div class="card-label">Signaux collectés</div>
+        <h3>Métriques · Logs · Traces</h3>
+        <p>Les 3 piliers de l'observabilité unifiés en un pipeline unique. Enrichissement contextuel avec labels IA : modèle, version, GPU ID, tenant.</p>
+      </div>
+    </div>
+
+    <div class="arrow-down">
+      <svg width="24" height="32" viewBox="0 0 24 32" fill="none"><path d="M12 0v28m0 0l-7-7m7 7l7-7" stroke="var(--amber)" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+
+    <!-- STEP 4 — STORAGE -->
+    <div class="step step--store">
+      <div class="card card--left">
+        <div class="card-label">Métriques clés</div>
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-value">10x</div>
+            <div class="metric-label">Compression</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value">&lt;1ms</div>
+            <div class="metric-label">Query</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value">1M+</div>
+            <div class="metric-label">Series</div>
+          </div>
+        </div>
+      </div>
+      <div class="node">⬢</div>
+      <div class="card card--right">
+        <div class="card-label">Couche 04 — Stockage</div>
+        <h3>TSDB & Data Lake</h3>
+        <p>Stockage haute performance et longue rétention des séries temporelles. Requêtage PromQL/MetricsQL pour corrélation temps réel et forensics.</p>
+        <div class="tools">
+          <span class="tool-tag">VictoriaMetrics</span>
+          <span class="tool-tag">VictoriaLogs</span>
+          <span class="tool-tag">ClickHouse</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-down">
+      <svg width="24" height="32" viewBox="0 0 24 32" fill="none"><path d="M12 0v28m0 0l-7-7m7 7l7-7" stroke="var(--purple)" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+
+    <!-- STEP 5 — RULES -->
+    <div class="step step--rules">
+      <div class="card card--left">
+        <div class="card-label">Couche 05 — Détection</div>
+        <h3>Rules & Anomaly Detection</h3>
+        <p>Moteur de règles et détection d'anomalies sur les patterns IA : spike de latence, prompt injection, extraction de modèle, comportement anormal.</p>
+        <div class="tools">
+          <span class="tool-tag">vmalert</span>
+          <span class="tool-tag">Grafana Alerting</span>
+          <span class="tool-tag">Sigma Rules</span>
+        </div>
+      </div>
+      <div class="node">△</div>
+      <div class="card card--right">
+        <div class="card-label">Cas de détection</div>
+        <h3>Menaces IA spécifiques</h3>
+        <p>Prompt injection, data exfiltration via output, model stealing par requêtes systématiques, resource hijacking GPU, adversarial inputs.</p>
+      </div>
+    </div>
+
+    <div class="arrow-down">
+      <svg width="24" height="32" viewBox="0 0 24 32" fill="none"><path d="M12 0v28m0 0l-7-7m7 7l7-7" stroke="var(--magenta)" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+
+    <!-- STEP 6 — SIEM -->
+    <div class="step step--siem">
+      <div class="card card--left">
+        <div class="card-label">Intégration SOC</div>
+        <h3>Alerte → Ticket → Réponse</h3>
+        <p>Corrélation avec les events réseau et applicatifs existants. Enrichissement MITRE ATT&CK. Escalade automatisée vers le SOC/CSIRT.</p>
+        <div class="tools">
+          <span class="tool-tag">MITRE ATT&CK</span>
+          <span class="tool-tag">SOAR</span>
+          <span class="tool-tag">TheHive</span>
+        </div>
+      </div>
+      <div class="node">⬣</div>
+      <div class="card card--right">
+        <div class="card-label">Couche 06 — Réponse</div>
+        <h3>SIEM & Incident Response</h3>
+        <p>Point de convergence sécurité. Les alertes IA rejoignent la stack cyber existante pour corrélation, investigation et réponse coordonnée.</p>
+        <div class="tools">
+          <span class="tool-tag">Wazuh</span>
+          <span class="tool-tag">Elastic SIEM</span>
+          <span class="tool-tag">Splunk</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /chain -->
+
+  <!-- BANNER -->
+  <div class="banner">
+    <div class="banner-text">
+      <h3>Pourquoi cette chaîne est critique</h3>
+      <p>Sans observabilité de bout en bout, une attaque sur un LLM en production peut rester invisible pendant des semaines.</p>
+    </div>
+    <div class="banner-stats">
+      <div class="banner-stat">
+        <div class="val">6</div>
+        <div class="lbl">Couches</div>
+      </div>
+      <div class="banner-stat">
+        <div class="val">~200</div>
+        <div class="lbl">Métriques IA</div>
+      </div>
+      <div class="banner-stat">
+        <div class="val">&lt;5s</div>
+        <div class="lbl">Détection</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="brand"><span>ERYTHIX</span> · AI Observability & Cybersecurity</div>
+    <div class="links">Samuel Desseaux — CTO-Advocate · VictoriaMetrics Training Partner Europe</div>
+  </div>
+
+</div>
+
+</body>
+</html>

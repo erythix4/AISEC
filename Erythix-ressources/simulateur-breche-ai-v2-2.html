@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulateur d'impact — Coût d'une brèche AI | Skophia</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f8f9fb;
+  --surface: #ffffff;
+  --border: #e2e5ea;
+  --border-active: #1a56db;
+  --accent: #1a56db;
+  --accent-light: #eef2ff;
+  --accent-dark: #0f3a94;
+  --red: #c81e1e;
+  --red-bg: #fef2f2;
+  --red-border: #fecaca;
+  --orange: #b45309;
+  --orange-bg: #fffbeb;
+  --orange-border: #fde68a;
+  --green: #047857;
+  --green-bg: #ecfdf5;
+  --green-border: #a7f3d0;
+  --text: #111827;
+  --text-mid: #4b5563;
+  --text-dim: #6b7280;
+  --text-light: #9ca3af;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', -apple-system, sans-serif;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 17px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 48px 20px 60px;
+}
+
+/* Header */
+.header { margin-bottom: 40px; }
+.brand {
+  display: inline-block;
+  font: 500 15px var(--mono);
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  padding: 4px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.header h1 {
+  font: 700 30px/1.2 var(--sans);
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.header p {
+  font-size: 16px;
+  color: var(--text-dim);
+  max-width: 540px;
+}
+
+/* Steps bar */
+.steps-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 28px;
+  padding: 0 4px;
+}
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 500 15px var(--mono);
+  color: var(--text-light);
+  transition: color 0.2s;
+}
+.step-item.active { color: var(--accent); }
+.step-item.done { color: var(--green); }
+.step-num {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font: 600 12px var(--mono);
+  border: 1.5px solid var(--border);
+  color: var(--text-light);
+  background: var(--surface);
+  transition: all 0.2s;
+}
+.step-item.active .step-num {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.step-item.done .step-num {
+  border-color: var(--green);
+  background: var(--green-bg);
+  color: var(--green);
+}
+.step-sep {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+  margin: 0 8px;
+}
+.step-sep.done { background: var(--green); opacity: 0.3; }
+
+/* Panel */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 28px;
+}
+.panel h2 {
+  font: 600 19px/1.3 var(--sans);
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.panel .sub {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin-bottom: 20px;
+}
+
+/* Options */
+.options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+}
+.opt-btn {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+  outline: none;
+  font-family: var(--sans);
+}
+.opt-btn:hover { border-color: #c7cdd4; background: #fafbfc; }
+.opt-btn.selected {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+.opt-label {
+  font: 500 15px/1.4 var(--sans);
+  color: var(--text);
+  display: block;
+}
+.opt-btn.selected .opt-label { color: var(--accent-dark); }
+.opt-desc {
+  font-size: 15px;
+  color: var(--text-dim);
+  margin-top: 3px;
+  line-height: 1.4;
+}
+.opt-source {
+  font: 400 12px var(--mono);
+  color: var(--text-light);
+  margin-top: 4px;
+}
+
+/* Nav */
+.nav { display: flex; justify-content: space-between; margin-top: 20px; }
+.btn {
+  padding: 10px 22px;
+  border-radius: 6px;
+  font: 500 15px var(--sans);
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+}
+.btn-ghost {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-mid);
+}
+.btn-ghost:hover { background: #f3f4f6; }
+.btn-ghost:disabled { color: var(--text-light); cursor: default; background: var(--surface); }
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--accent-dark); }
+.btn-primary:disabled {
+  background: #e5e7eb;
+  color: #9ca3af;
+  cursor: default;
+}
+
+/* Results */
+.results {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: all 0.4s ease;
+}
+.results.visible { opacity: 1; transform: translateY(0); }
+
+.total-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 32px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+.total-label {
+  font: 500 15px var(--mono);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.total-value {
+  font: 700 44px var(--mono);
+  color: var(--text);
+  letter-spacing: -1px;
+}
+.total-range {
+  font: 400 15px var(--sans);
+  color: var(--text-dim);
+  margin-top: 6px;
+}
+
+.metrics-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.metric-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+}
+.metric-val {
+  font: 700 26px var(--mono);
+  margin-bottom: 2px;
+}
+.metric-val.warn { color: var(--orange); }
+.metric-val.bad { color: var(--red); }
+.metric-val.good { color: var(--green); }
+.metric-label { font-size: 14px; color: var(--text-dim); }
+.metric-source { font: 400 12px var(--mono); color: var(--text-light); margin-top: 4px; }
+
+/* Breakdown */
+.breakdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.breakdown-table th {
+  text-align: left;
+  font: 500 12px var(--mono);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.breakdown-table td {
+  padding: 10px 0;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+}
+.breakdown-table td:last-child {
+  text-align: right;
+  font: 600 15px var(--mono);
+  color: var(--text);
+}
+.bar-cell { width: 40%; }
+.bar-track {
+  height: 8px;
+  background: #f3f4f6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+
+/* Callout */
+.callout {
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.callout-bad { background: var(--red-bg); border: 1px solid var(--red-border); }
+.callout-warn { background: var(--orange-bg); border: 1px solid var(--orange-border); }
+.callout-ok { background: var(--green-bg); border: 1px solid var(--green-border); }
+.callout-indicator {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+.callout-bad .callout-indicator { background: var(--red); }
+.callout-warn .callout-indicator { background: var(--orange); }
+.callout-ok .callout-indicator { background: var(--green); }
+.callout-title { font: 600 18px var(--sans); color: var(--text); margin-bottom: 4px; }
+.callout-text { font-size: 14px; color: var(--text-mid); line-height: 1.5; }
+.callout-savings {
+  margin-top: 10px;
+  font: 500 15px var(--sans);
+  color: var(--accent-dark);
+}
+
+/* Methodology */
+.method-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.method-section h3 {
+  font: 600 18px var(--sans);
+  color: var(--text);
+  margin-bottom: 12px;
+}
+.method-formula {
+  background: #f3f4f6;
+  border-radius: 6px;
+  padding: 16px;
+  font: 400 14px var(--mono);
+  color: var(--text-mid);
+  line-height: 1.8;
+  margin-bottom: 12px;
+  overflow-x: auto;
+}
+.method-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+.method-table th {
+  text-align: left;
+  font: 500 12px var(--mono);
+  color: var(--text-dim);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  background: #f9fafb;
+}
+.method-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #f3f4f6;
+  font-family: var(--sans);
+  color: var(--text-mid);
+}
+.method-table td:nth-child(2) { font-family: var(--mono); }
+.method-table .src { font: 400 12px var(--mono); color: var(--text-light); }
+.method-note {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin-top: 8px;
+}
+.sourced { color: var(--green); }
+.estimated { color: var(--orange); }
+
+/* CTA */
+.cta-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 28px;
+  text-align: center;
+}
+.cta-title { font: 600 18px var(--sans); color: var(--text); margin-bottom: 6px; }
+.cta-sub { font-size: 14px; color: var(--text-dim); margin-bottom: 20px; }
+.cta-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+.back-link {
+  display: block; text-align: center; margin-top: 14px;
+  background: none; border: none;
+  font: 400 14px var(--sans); color: var(--text-dim); cursor: pointer;
+  text-decoration: underline;
+}
+.back-link:hover { color: var(--text); }
+
+/* Footer */
+.footer {
+  text-align: center; margin-top: 48px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font: 400 14px var(--sans);
+  color: var(--text-light);
+}
+
+.hidden { display: none !important; }
+
+@media (max-width: 500px) {
+  .options { grid-template-columns: 1fr; }
+  .total-value { font-size: 34px; }
+  .metrics-row { grid-template-columns: 1fr; }
+  .step-item span:not(.step-num) { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <div class="brand">Skophia / AI Security & Observability</div>
+    <h1>Coût d'une brèche AI : simulateur d'impact</h1>
+    <p>Estimez l'impact financier d'un incident de sécurité sur vos systèmes d'intelligence artificielle, basé sur les données IBM Cost of a Data Breach 2024.</p>
+  </div>
+
+  <!-- Wizard -->
+  <div id="wizard">
+    <div class="steps-bar" id="stepsBar"></div>
+    <div class="panel">
+      <h2 id="stepTitle"></h2>
+      <p class="sub" id="stepSub"></p>
+      <div class="options" id="optionsGrid"></div>
+    </div>
+    <div class="nav">
+      <button class="btn btn-ghost" id="btnBack" onclick="goBack()">Retour</button>
+      <button class="btn btn-primary" id="btnNext" onclick="goNext()" disabled>Suivant</button>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="resultsSection" class="results hidden">
+    <div class="total-box">
+      <div class="total-label">Coût estimé de l'incident</div>
+      <div class="total-value" id="totalValue"></div>
+      <div class="total-range" id="totalRange"></div>
+    </div>
+
+    <div class="metrics-row">
+      <div class="metric-card">
+        <div class="metric-val" id="detectionDays"></div>
+        <div class="metric-label">Jours pour identifier la brèche</div>
+        <div class="metric-source">Moyenne IBM 2024 : 194 j</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val" id="containDays"></div>
+        <div class="metric-label">Jours pour contenir la brèche</div>
+        <div class="metric-source">Moyenne IBM 2024 : 64 j</div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:16px">
+      <h3 style="font:600 14px var(--sans);margin-bottom:14px">Répartition estimée des coûts</h3>
+      <table class="breakdown-table" id="breakdownTable">
+        <thead>
+          <tr><th>Catégorie</th><th>Proportion</th><th class="bar-cell"></th><th>Montant</th></tr>
+        </thead>
+        <tbody id="breakdownBody"></tbody>
+      </table>
+    </div>
+
+    <div id="callout"></div>
+
+    <!-- Methodology -->
+    <div class="method-section">
+      <h3>Modèle de calcul et sources</h3>
+      <div class="method-formula">
+Coût = Base sectorielle IBM × Facteur taille × Facteur type AI × Facteur brèche × Facteur monitoring
+      </div>
+
+      <p style="font:600 12px var(--sans);color:var(--text);margin-bottom:6px">Bases sectorielles <span class="sourced">(IBM 2024, sourcé)</span></p>
+      <table class="method-table" id="sectorSourceTable"></table>
+
+      <p style="font:600 12px var(--sans);color:var(--text);margin:14px 0 6px">Facteurs de taille <span class="estimated">(estimé)</span></p>
+      <table class="method-table" id="sizeSourceTable"></table>
+
+      <p style="font:600 12px var(--sans);color:var(--text);margin:14px 0 6px">Facteurs de risque AI <span class="estimated">(estimé)</span></p>
+      <table class="method-table" id="aiSourceTable"></table>
+
+      <p style="font:600 12px var(--sans);color:var(--text);margin:14px 0 6px">Facteurs par type de brèche <span class="estimated">(estimé, ordres de grandeur OWASP/MITRE)</span></p>
+      <table class="method-table" id="breachSourceTable"></table>
+
+      <p style="font:600 12px var(--sans);color:var(--text);margin:14px 0 6px">Impact du monitoring <span class="sourced">(IBM 2024, sourcé)</span></p>
+      <table class="method-table" id="monitorSourceTable"></table>
+
+      <div class="method-note" id="methodNote"></div>
+    </div>
+
+    <div class="cta-box">
+      <div class="cta-title">Protégez vos systèmes AI en production</div>
+      <div class="cta-sub">Audit de sécurité AI &middot; Stack d'observabilité souveraine &middot; Formation "Sécuriser ses LLM en production"</div>
+      <div class="cta-buttons">
+        <a href="mailto:contact@erythix.tech?subject=Demande%20de%20diagnostic%20s%C3%A9curit%C3%A9%20AI" class="btn btn-primary" style="text-decoration:none">Demander un diagnostic</a>
+        <button class="btn btn-ghost" onclick="resetAll()">Relancer la simulation</button>
+      </div>
+    </div>
+
+    <button class="back-link" onclick="backToParams()">Modifier mes paramètres</button>
+  </div>
+
+  <div class="footer">
+    Skophia &mdash; AI Security & Observability &middot; contact@erythix.tech
+  </div>
+</div>
+
+<script>
+/*
+ * MODEL DOCUMENTATION
+ *
+ * Sourced data (IBM Cost of a Data Breach 2024, Ponemon Institute):
+ * - Global average: $4.88M
+ * - By sector: Healthcare $9.77M, Finance $6.08M, Industrial $5.56M,
+ *   Technology ~$5.4M, Energy ~$5.3M, Public $2.55M
+ * - SMEs (<500 employees): $3.31M
+ * - AI/automation in prevention: -$2.2M savings (from $5.72M to $3.84M, ~33%)
+ * - Average lifecycle: 258 days (194 identify + 64 contain)
+ * - With internal detection: -61 days, -$1M
+ * - Stolen credentials: 292 days lifecycle
+ * - Staffing shortages: +$1.76M
+ *
+ * Estimated / interpolated:
+ * - Size factors (ratio vs global average, anchored on SME data)
+ * - AI deployment type risk factors (no published sector data on AI-specific breaches)
+ * - Breach type factors (informed by OWASP LLM Top 10 and MITRE ATLAS taxonomy)
+ * - Cost breakdown percentages (IBM publishes totals, not granular breakdowns;
+ *   categories are informed by IBM's methodology: lost business, detection/escalation,
+ *   notification, post-breach response)
+ */
+
+// Sector base costs in euros (converted from IBM USD data at ~0.92 EUR/USD)
+// These are average breach costs per sector from IBM 2024
+const STEPS = [
+  {
+    title: "Secteur d'activité",
+    sub: "Coût moyen d'une brèche par secteur (source : IBM / Ponemon 2024)",
+    key: "sector",
+    items: [
+      { id:"health", label:"Santé & Pharma", base:8990000, source:"IBM 2024 : 9,77 M$" },
+      { id:"finance", label:"Finance & Assurance", base:5590000, source:"IBM 2024 : 6,08 M$" },
+      { id:"industry", label:"Industrie & Manufacturing", base:5120000, source:"IBM 2024 : 5,56 M$" },
+      { id:"tech", label:"Technologie", base:4970000, source:"IBM 2024 : ~5,4 M$" },
+      { id:"energy", label:"Énergie & Utilities", base:4880000, source:"IBM 2024 : ~5,3 M$" },
+      { id:"defense", label:"Défense & Aérospatial", base:5120000, source:"Estimé : equiv. industriel" },
+      { id:"retail", label:"Retail & E-commerce", base:3500000, source:"IBM 2024 : ~3,8 M$" },
+      { id:"public", label:"Secteur Public", base:2350000, source:"IBM 2024 : 2,55 M$" },
+    ]
+  },
+  {
+    title: "Taille de l'organisation",
+    sub: "Facteur de pondération appliqué à la base sectorielle",
+    key: "size",
+    items: [
+      { id:"small", label:"PME (10-49 salariés)", factor:0.12, desc:"Estimé : ~12% du coût sectoriel moyen" },
+      { id:"medium", label:"ETI (50-249)", factor:0.35, desc:"Estimé : ~35% du coût sectoriel moyen" },
+      { id:"midmarket", label:"Mid-Market (250-999)", factor:0.68, desc:"Ancré sur IBM SME $3.31M = 68% de $4.88M" },
+      { id:"large", label:"Grande entreprise (1000+)", factor:1.0, desc:"= coût sectoriel IBM (base 100%)" },
+    ]
+  },
+  {
+    title: "Type de système AI déployé",
+    sub: "Facteur de risque estimé selon l'exposition du modèle (non sourcé IBM)",
+    key: "aiType",
+    items: [
+      { id:"llm_customer", label:"LLM exposé aux clients / API publique", factor:1.4, desc:"Surface d'attaque maximale, données clients" },
+      { id:"ai_industrial", label:"AI industrielle / OT / IoT", factor:1.3, desc:"Impact opérationnel, convergence IT/OT" },
+      { id:"ml_decision", label:"ML décisionnel (scoring, prédiction)", factor:1.2, desc:"Biais, conformité AI Act, impact business" },
+      { id:"cv_model", label:"Computer Vision / Vidéo", factor:1.1, desc:"Attaques adversariales, données sensibles" },
+      { id:"llm_internal", label:"LLM interne / chatbot interne", factor:1.0, desc:"Surface limitée, risque de data leakage" },
+      { id:"genai_content", label:"GenAI création de contenu", factor:0.85, desc:"Faible exposition de données sensibles" },
+    ]
+  },
+  {
+    title: "Scénario de brèche",
+    sub: "Facteur estimé selon la taxonomie OWASP LLM Top 10 et MITRE ATLAS",
+    key: "breachType",
+    items: [
+      { id:"supply_chain", label:"Supply Chain AI compromise", factor:1.4, desc:"Composant tiers, dépendance, propagation" },
+      { id:"model_theft", label:"Exfiltration du modèle", factor:1.3, desc:"Vol de propriété intellectuelle, R&D" },
+      { id:"data_leakage", label:"Data Leakage via le modèle", factor:1.25, desc:"Fuite de données d'entraînement ou PII" },
+      { id:"data_poisoning", label:"Data Poisoning", factor:1.2, desc:"Corruption des données d'entraînement" },
+      { id:"adversarial", label:"Attaque adversariale", factor:1.05, desc:"Perturbation ciblée des prédictions" },
+      { id:"prompt_injection", label:"Prompt Injection", factor:0.9, desc:"Manipulation des entrées, contournement" },
+    ]
+  },
+  {
+    title: "Niveau de monitoring AI en place",
+    sub: "L'usage d'AI/automation en prévention réduit le coût moyen de 2,2 M$ (IBM 2024)",
+    key: "monitoring",
+    items: [
+      { id:"extensive", label:"Stack d'observabilité AI dédiée", factor:0.67, desc:"IBM 2024 : 3,84 M$ vs 4,88 M$ = -33%" },
+      { id:"partial", label:"Monitoring infra uniquement", factor:0.85, desc:"Estimé : détection partielle, pas de couverture ML" },
+      { id:"none", label:"Pas de monitoring spécifique AI", factor:1.0, desc:"IBM 2024 : 5,72 M$ (organisations sans AI/automation)" },
+    ]
+  }
+];
+
+// Cost breakdown categories
+// IBM reports 4 categories: Lost Business, Detection & Escalation, Notification, Post-breach Response
+// We map to more actionable labels for the target audience
+const COST_CATS = [
+  { id:"lost_business", label:"Perte d'activité & clients", pct:0.28, color:"#ef4444", note:"IBM 2024 : catégorie 'Lost Business', en hausse de 11%" },
+  { id:"detection", label:"Détection & investigation", pct:0.24, color:"#f59e0b", note:"IBM 2024 : catégorie 'Detection & Escalation'" },
+  { id:"post_breach", label:"Réponse post-incident", pct:0.22, color:"#3b82f6", note:"IBM 2024 : catégorie 'Post-breach Response'" },
+  { id:"compliance", label:"Notification & conformité", pct:0.14, color:"#8b5cf6", note:"IBM 2024 : catégorie 'Notification' + amendes RGPD/AI Act" },
+  { id:"remediation", label:"Remédiation technique", pct:0.12, color:"#06b6d4", note:"Estimé : reconstruction, audit, hardening" },
+];
+
+let currentStep = 0;
+let answers = {};
+
+function formatEuro(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1).replace('.', ',') + '\u00a0M\u20ac';
+  if (n >= 1000) return Math.round(n / 1000) + '\u00a0k\u20ac';
+  return Math.round(n).toLocaleString('fr-FR') + '\u00a0\u20ac';
+}
+
+function renderStepsBar() {
+  const bar = document.getElementById('stepsBar');
+  bar.innerHTML = '';
+  const labels = ['Secteur', 'Taille', 'Systeme AI', 'Breche', 'Monitoring'];
+  for (let i = 0; i < STEPS.length; i++) {
+    const item = document.createElement('div');
+    item.className = 'step-item' + (i < currentStep ? ' done' : '') + (i === currentStep ? ' active' : '');
+    item.innerHTML = '<span class="step-num">' + (i + 1) + '</span><span>' + labels[i] + '</span>';
+    bar.appendChild(item);
+    if (i < STEPS.length - 1) {
+      const sep = document.createElement('div');
+      sep.className = 'step-sep' + (i < currentStep ? ' done' : '');
+      bar.appendChild(sep);
+    }
+  }
+}
+
+function renderStep() {
+  const s = STEPS[currentStep];
+  document.getElementById('stepTitle').textContent = s.title;
+  document.getElementById('stepSub').textContent = s.sub;
+  const grid = document.getElementById('optionsGrid');
+  grid.innerHTML = '';
+  s.items.forEach(item => {
+    const btn = document.createElement('button');
+    btn.className = 'opt-btn' + (answers[s.key] === item.id ? ' selected' : '');
+    let html = '<span class="opt-label">' + item.label + '</span>';
+    if (item.desc) html += '<div class="opt-desc">' + item.desc + '</div>';
+    if (item.source) html += '<div class="opt-source">' + item.source + '</div>';
+    btn.innerHTML = html;
+    btn.onclick = () => { answers[s.key] = item.id; renderStep(); updateNav(); };
+    grid.appendChild(btn);
+  });
+  renderStepsBar();
+  updateNav();
+}
+
+function updateNav() {
+  const s = STEPS[currentStep];
+  document.getElementById('btnBack').disabled = currentStep === 0;
+  const ok = !!answers[s.key];
+  document.getElementById('btnNext').disabled = !ok;
+  document.getElementById('btnNext').textContent = currentStep === STEPS.length - 1 ? "Calculer l'impact" : "Suivant";
+}
+
+function goNext() {
+  if (currentStep < STEPS.length - 1) { currentStep++; renderStep(); }
+  else showResults();
+}
+function goBack() {
+  if (currentStep > 0) { currentStep--; renderStep(); }
+}
+
+function getItem(stepIdx, id) {
+  return STEPS[stepIdx].items.find(i => i.id === id);
+}
+
+function showResults() {
+  const sector = getItem(0, answers.sector);
+  const size = getItem(1, answers.size);
+  const ai = getItem(2, answers.aiType);
+  const breach = getItem(3, answers.breachType);
+  const mon = getItem(4, answers.monitoring);
+
+  const total = Math.round(sector.base * size.factor * ai.factor * breach.factor * mon.factor);
+  // Range: +/- 25% to reflect uncertainty
+  const low = Math.round(total * 0.75);
+  const high = Math.round(total * 1.25);
+
+  const cats = COST_CATS.map(c => ({ ...c, amount: Math.round(total * c.pct) }));
+
+  // Detection times (IBM 2024 sourced data)
+  let identifyDays, containDaysVal, identifyClass, containClass;
+  if (answers.monitoring === 'extensive') {
+    identifyDays = 158; containDaysVal = 51; // IBM: AI reduces lifecycle by ~61 days
+    identifyClass = 'good'; containClass = 'good';
+  } else if (answers.monitoring === 'partial') {
+    identifyDays = 185; containDaysVal = 62;
+    identifyClass = 'warn'; containClass = 'warn';
+  } else {
+    identifyDays = 210; containDaysVal = 78;
+    identifyClass = 'bad'; containClass = 'bad';
+  }
+
+  document.getElementById('wizard').classList.add('hidden');
+  const rs = document.getElementById('resultsSection');
+  rs.classList.remove('hidden');
+
+  document.getElementById('totalValue').textContent = formatEuro(total);
+  document.getElementById('totalRange').textContent = 'Fourchette estimée : ' + formatEuro(low) + ' \u2013 ' + formatEuro(high);
+
+  const detEl = document.getElementById('detectionDays');
+  detEl.textContent = identifyDays + ' jours';
+  detEl.className = 'metric-val ' + identifyClass;
+
+  const conEl = document.getElementById('containDays');
+  conEl.textContent = containDaysVal + ' jours';
+  conEl.className = 'metric-val ' + containClass;
+
+  // Breakdown table
+  const tbody = document.getElementById('breakdownBody');
+  tbody.innerHTML = '';
+  cats.forEach(c => {
+    const pctDisp = Math.round(c.pct * 100);
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + c.label + '</td>'
+      + '<td style="font:400 12px var(--mono);color:var(--text-dim)">' + pctDisp + '%</td>'
+      + '<td class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:0%;background:' + c.color + '"></div></div></td>'
+      + '<td>' + formatEuro(c.amount) + '</td>';
+    tbody.appendChild(tr);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        tr.querySelector('.bar-fill').style.width = pctDisp + '%';
+      });
+    });
+  });
+
+  // Callout
+  const calloutEl = document.getElementById('callout');
+  let cls, title, text, savings = '';
+
+  if (answers.monitoring === 'none') {
+    cls = 'callout-bad';
+    title = "Aucune observabilité AI en place";
+    text = "IBM rapporte un écart moyen de 2,2 M$ entre les organisations qui déploient l'AI/automation en prévention et celles qui ne le font pas. Le temps de détection est également allongé de 61 jours en moyenne.";
+    const withMon = Math.round(total * 0.67);
+    savings = 'Coût estimé avec une stack d\'observabilité AI : ' + formatEuro(withMon) + ' (soit -' + formatEuro(total - withMon) + ')';
+  } else if (answers.monitoring === 'partial') {
+    cls = 'callout-warn';
+    title = "Monitoring infra sans couverture des modèles AI";
+    text = "Votre infrastructure est monitorée mais les comportements spécifiques aux modèles (drift, injection, exfiltration, latence anormale) ne sont pas couverts. L'ajout d'une couche d'observabilité ML permettrait de se rapprocher du facteur -33% documenté par IBM.";
+    const withFull = Math.round(total * (0.67 / 0.85));
+    savings = 'Avec monitoring AI complet : ' + formatEuro(withFull) + ' (soit -' + formatEuro(total - withFull) + ')';
+  } else {
+    cls = 'callout-ok';
+    title = "Réduction de ~33% grâce au monitoring AI";
+    text = "Votre stack d'observabilité AI vous place dans la catégorie des organisations qui économisent en moyenne 2,2 M$ par incident selon IBM 2024. Maintenez vos dashboards, alertes et playbooks de réponse à jour.";
+  }
+
+  calloutEl.innerHTML = '<div class="callout ' + cls + '">'
+    + '<div class="callout-indicator"></div>'
+    + '<div><div class="callout-title">' + title + '</div>'
+    + '<div class="callout-text">' + text + '</div>'
+    + (savings ? '<div class="callout-savings">' + savings + '</div>' : '')
+    + '</div></div>';
+
+  // Methodology tables
+  buildMethodTables(sector, size, ai, breach, mon);
+
+  setTimeout(() => rs.classList.add('visible'), 50);
+}
+
+function buildMethodTables(sector, size, ai, breach, mon) {
+  // Sector sources
+  const st = document.getElementById('sectorSourceTable');
+  st.innerHTML = '<thead><tr><th>Secteur</th><th>Base (EUR)</th><th>Source</th></tr></thead><tbody>';
+  STEPS[0].items.forEach(i => {
+    const bold = i.id === sector.id ? 'font-weight:600;color:var(--text)' : '';
+    st.innerHTML += '<tr><td style="' + bold + '">' + i.label + '</td><td>' + formatEuro(i.base) + '</td><td class="src">' + (i.source || '') + '</td></tr>';
+  });
+  st.innerHTML += '</tbody>';
+
+  // Size
+  const szt = document.getElementById('sizeSourceTable');
+  szt.innerHTML = '<thead><tr><th>Taille</th><th>Facteur</th><th>Justification</th></tr></thead><tbody>';
+  STEPS[1].items.forEach(i => {
+    const bold = i.id === size.id ? 'font-weight:600;color:var(--text)' : '';
+    szt.innerHTML += '<tr><td style="' + bold + '">' + i.label + '</td><td>x' + i.factor + '</td><td class="src">' + (i.desc || '') + '</td></tr>';
+  });
+  szt.innerHTML += '</tbody>';
+
+  // AI type
+  const ait = document.getElementById('aiSourceTable');
+  ait.innerHTML = '<thead><tr><th>Type AI</th><th>Facteur</th><th>Raisonnement</th></tr></thead><tbody>';
+  STEPS[2].items.forEach(i => {
+    const bold = i.id === ai.id ? 'font-weight:600;color:var(--text)' : '';
+    ait.innerHTML += '<tr><td style="' + bold + '">' + i.label + '</td><td>x' + i.factor + '</td><td class="src">' + (i.desc || '') + '</td></tr>';
+  });
+  ait.innerHTML += '</tbody>';
+
+  // Breach type
+  const bt = document.getElementById('breachSourceTable');
+  bt.innerHTML = '<thead><tr><th>Scenario</th><th>Facteur</th><th>Raisonnement</th></tr></thead><tbody>';
+  STEPS[3].items.forEach(i => {
+    const bold = i.id === breach.id ? 'font-weight:600;color:var(--text)' : '';
+    bt.innerHTML += '<tr><td style="' + bold + '">' + i.label + '</td><td>x' + i.factor + '</td><td class="src">' + (i.desc || '') + '</td></tr>';
+  });
+  bt.innerHTML += '</tbody>';
+
+  // Monitoring
+  const mt = document.getElementById('monitorSourceTable');
+  mt.innerHTML = '<thead><tr><th>Niveau</th><th>Facteur</th><th>Source</th></tr></thead><tbody>';
+  STEPS[4].items.forEach(i => {
+    const bold = i.id === mon.id ? 'font-weight:600;color:var(--text)' : '';
+    mt.innerHTML += '<tr><td style="' + bold + '">' + i.label + '</td><td>x' + i.factor + '</td><td class="src">' + (i.desc || '') + '</td></tr>';
+  });
+  mt.innerHTML += '</tbody>';
+
+  // Note
+  document.getElementById('methodNote').innerHTML =
+    '<strong>Transparence :</strong> Les bases sectorielles et l\'impact du monitoring sont directement issus du rapport IBM/Ponemon 2024 (604 organisations, 17 secteurs, 16 pays). '
+    + 'Les facteurs de taille, de type AI et de scenario de brèche sont des estimations raisonnées, non des données publiées. '
+    + 'Les chiffres IBM sont en dollars US, convertis ici à ~0,92 EUR/USD. '
+    + 'La fourchette de +/- 25% reflète l\'incertitude inhérente à ces extrapolations. '
+    + 'Ce simulateur est un outil de sensibilisation, pas une analyse actuarielle.';
+}
+
+function backToParams() {
+  document.getElementById('resultsSection').classList.add('hidden');
+  document.getElementById('resultsSection').classList.remove('visible');
+  document.getElementById('wizard').classList.remove('hidden');
+  renderStep();
+}
+function resetAll() {
+  currentStep = 0; answers = {};
+  backToParams();
+}
+
+renderStep();
+</script>
+</body>
+</html>

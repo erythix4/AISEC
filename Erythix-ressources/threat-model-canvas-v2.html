@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Threat Model Canvas - Erythix</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#edeef0;--surface:#fff;--sf2:#f6f6f7;--border:#d4d6db;--bfocus:#555;
+  --accent:#222;--ainv:#fff;
+  --red:#a3243b;--red-l:#f9eced;--orange:#8a5000;--orange-l:#fdf3e2;
+  --yellow:#6d5c10;--green:#1a6944;--green-l:#e8f5ee;--blue:#234e8e;--blue-l:#eef3ff;
+  --purple:#6d28d9;--purple-l:#f3edff;
+  --text:#1a1a1a;--t2:#444;--t3:#777;--t4:#aaa;
+  --pb:#1b1d21;--ps:#242628;--pbr:#333538;--pt:#b8bcc4;--pd:#666b74;
+  --mono:'DM Mono','Menlo',monospace;--sans:'DM Sans',system-ui,sans-serif;
+}
+body{min-height:100vh;background:var(--bg);color:var(--text);font:400 16px/1.5 var(--sans);-webkit-font-smoothing:antialiased;overflow:hidden}
+
+.app{display:grid;grid-template-columns:220px 1fr 360px;grid-template-rows:auto 1fr;height:100vh}
+
+/* Header */
+.app-header{grid-column:1/-1;padding:10px 20px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.app-brand h1{font:700 19px var(--sans);color:var(--text);letter-spacing:-.2px}
+.app-brand-tag{font:500 11px var(--mono);color:var(--t3);letter-spacing:.4px}
+.app-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.btn{padding:7px 16px;border-radius:4px;font:600 13px var(--sans);cursor:pointer;border:none;text-decoration:none;transition:all .12s}
+.btn-dark{background:var(--accent);color:var(--ainv)}.btn-dark:hover{background:#000}
+.btn-outline{background:var(--surface);border:1px solid var(--border);color:var(--t2)}.btn-outline:hover{background:var(--sf2)}
+.btn-link{background:none;border:none;color:var(--t3);font:500 13px var(--sans);cursor:pointer;padding:7px 8px}
+.btn-link:hover{color:var(--text)}
+
+/* Mode indicator */
+.mode-ind{font:600 12px var(--mono);padding:5px 12px;border-radius:3px;display:none;animation:pulse 1.2s infinite}
+.mode-ind.active{display:inline-block}
+.mode-connect{background:#eef3ff;color:var(--blue);border:1px solid #b8cff0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+
+/* Risk score in header */
+.risk-badge{display:flex;align-items:center;gap:8px;padding:6px 14px;border-radius:4px;background:var(--sf2);border:1px solid var(--border)}
+.risk-score-num{font:700 20px var(--mono);transition:color .3s}
+.risk-score-num.low{color:var(--green)}.risk-score-num.med{color:var(--orange)}.risk-score-num.high{color:var(--red)}
+.risk-score-label{font:400 11px var(--mono);color:var(--t3)}
+
+/* Sidebar */
+.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:12px;overflow-y:auto}
+.sb-title{font:600 10px var(--mono);color:var(--t4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.sb-group{margin-bottom:12px}
+.sb-group-label{font:600 12px var(--sans);color:var(--text);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.sb-group-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.comp-btn{
+  display:flex;align-items:center;gap:7px;width:100%;padding:6px 9px;
+  background:var(--sf2);border:1px solid var(--border);border-radius:4px;
+  font:500 12px var(--sans);color:var(--t2);cursor:pointer;
+  margin-bottom:3px;transition:all .12s;text-align:left;
+}
+.comp-btn:hover{border-color:var(--bfocus);color:var(--text);background:#fff}
+.comp-icon{width:16px;text-align:center;font-size:12px;flex-shrink:0}
+.sb-hint{font:400 11px var(--sans);color:var(--t4);line-height:1.4;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+
+/* Canvas */
+.canvas-wrap{position:relative;overflow:hidden}
+.canvas-area{position:absolute;inset:0;cursor:default}
+.canvas-grid{position:absolute;inset:0;background-image:radial-gradient(circle,#d8dae0 1px,transparent 1px);background-size:24px 24px;pointer-events:none}
+.canvas-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font:400 15px var(--sans);color:var(--t4);text-align:center;pointer-events:none;line-height:1.6}
+svg.conn-svg{position:absolute;inset:0;pointer-events:none;z-index:5}
+.conn-line{stroke:#c0c4cc;stroke-width:2;fill:none}
+.conn-line.threat{stroke:#dc2626;stroke-width:2.5;opacity:.45}
+.conn-line.building{stroke:var(--blue);stroke-width:2;stroke-dasharray:6,4;opacity:.7}
+
+/* Nodes */
+.node{
+  position:absolute;background:var(--surface);border:2px solid var(--border);
+  border-radius:6px;padding:10px 12px;cursor:move;min-width:130px;
+  box-shadow:0 2px 8px rgba(0,0,0,.06);transition:box-shadow .15s,border-color .15s;z-index:10;user-select:none;
+}
+.node:hover{box-shadow:0 4px 14px rgba(0,0,0,.1)}
+.node.selected{border-color:var(--accent);box-shadow:0 0 0 3px rgba(34,34,34,.1)}
+.node.connect-source{border-color:var(--blue);box-shadow:0 0 0 3px rgba(35,78,142,.15)}
+.node.connect-target:hover{border-color:var(--blue);box-shadow:0 0 0 3px rgba(35,78,142,.2)}
+.node-header{display:flex;align-items:center;gap:7px;margin-bottom:2px}
+.node-color{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.node-name{font:600 13px var(--sans);color:var(--text)}
+.node-type{font:400 10px var(--mono);color:var(--t3);margin-bottom:4px}
+.node-attrs{display:flex;gap:3px;flex-wrap:wrap}
+.node-attr{font:500 9px var(--mono);padding:2px 5px;border-radius:2px;background:var(--sf2);color:var(--t4);border:1px solid var(--border)}
+.node-attr.on{background:var(--orange-l);border-color:#e8c97a;color:var(--orange)}
+.node-attr.on.pub{background:var(--red-l);border-color:#e4bfc5;color:var(--red)}
+.node-threats{margin-top:4px;display:flex;gap:2px;flex-wrap:wrap}
+.node-threat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.nt-crit{background:#dc2626}.nt-high{background:#ea580c}.nt-med{background:#ca8a04}.nt-low{background:#2563eb}
+.node-actions{position:absolute;top:-9px;right:-9px;display:none;gap:3px;z-index:20}
+.node:hover .node-actions{display:flex}
+.node-act{width:20px;height:20px;border-radius:50%;border:2px solid var(--surface);font:700 11px var(--sans);cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+.node-act-del{background:var(--red);color:#fff}
+.node-act-link{background:var(--blue);color:#fff;font-size:10px}
+.node-act-cfg{background:#666;color:#fff;font-size:9px}
+
+/* Attribute panel (popover) */
+.attr-panel{position:absolute;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.12);width:220px;display:none}
+.attr-panel.show{display:block}
+.attr-panel h4{font:600 14px var(--sans);color:var(--text);margin-bottom:10px}
+.attr-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f1f3}
+.attr-row:last-child{border-bottom:none}
+.attr-label{font:500 13px var(--sans);color:var(--t2)}
+.attr-toggle{position:relative;width:36px;height:20px;border-radius:10px;background:#ddd;cursor:pointer;transition:background .2s;flex-shrink:0}
+.attr-toggle.on{background:var(--accent)}
+.attr-toggle::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.attr-toggle.on::after{transform:translateX(16px)}
+
+/* Right panel */
+.threats-panel{background:var(--pb);border-left:1px solid var(--pbr);display:flex;flex-direction:column;overflow:hidden}
+.tp-header{padding:12px 16px;border-bottom:1px solid var(--pbr)}
+.tp-title{font:600 15px var(--sans);color:#d1d5db;margin-bottom:2px}
+.tp-sub{font:400 11px var(--mono);color:var(--pd)}
+.tp-tabs{display:flex;border-bottom:1px solid var(--pbr)}
+.tp-tab{flex:1;padding:8px 6px;font:500 11px var(--mono);color:var(--pd);text-align:center;cursor:pointer;border-bottom:2px solid transparent;transition:all .12s;white-space:nowrap}
+.tp-tab:hover{color:var(--pt)}.tp-tab.active{color:#d1d5db;border-bottom-color:#d1d5db}
+.tp-tab .badge{display:inline-block;min-width:16px;padding:1px 5px;border-radius:8px;font:700 10px var(--mono);margin-left:2px;background:rgba(255,255,255,.08);color:var(--pd)}
+.tp-tab.active .badge{background:rgba(255,255,255,.15);color:#d1d5db}
+.tp-body{flex:1;overflow-y:auto;padding:12px 14px}
+.tp-content{display:none;flex-direction:column;gap:8px}.tp-content.active{display:flex}
+.tp-empty{display:flex;align-items:center;justify-content:center;text-align:center;color:var(--pd);font-size:13px;line-height:1.6;padding:30px 16px;min-height:80px}
+
+/* Stats bar */
+.tp-stats{display:flex;gap:1px;background:var(--pbr);border-radius:4px;overflow:hidden;margin-bottom:8px}
+.tps{flex:1;background:var(--ps);padding:7px 4px;text-align:center}
+.tps-v{font:700 15px var(--mono);color:#d1d5db}
+.tps-v.r{color:#f87171}.tps-v.o{color:#fb923c}.tps-v.y{color:#facc15}.tps-v.g{color:#4ade80}
+.tps-l{font:400 8px var(--mono);color:var(--pd);margin-top:1px}
+
+/* Threat cards */
+.tc{background:var(--ps);border-radius:4px;border-left:3px solid transparent;padding:10px 12px;animation:si .25s ease}
+@keyframes si{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:translateX(0)}}
+.tc.crit{border-left-color:#dc2626}.tc.high{border-left-color:#ea580c}.tc.med{border-left-color:#ca8a04}.tc.low{border-left-color:#2563eb}
+.tc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+.sev{font:700 9px var(--mono);text-transform:uppercase;letter-spacing:.5px;padding:2px 6px;border-radius:2px}
+.sev-crit{background:#3b1117;color:#f87171}.sev-high{background:#3b1d0c;color:#fb923c}.sev-med{background:#352d0a;color:#facc15}.sev-low{background:#0c1b3b;color:#60a5fa}
+.tc-source{font:400 10px var(--mono);color:var(--pd);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tc-title{font:600 13px var(--sans);color:#d1d5db;margin-bottom:2px}
+.tc-desc{font:400 11px/1.5 var(--sans);color:var(--pt);margin-bottom:5px}
+.tc-tags{display:flex;flex-wrap:wrap;gap:3px}
+.tag{font:400 9px var(--mono);padding:2px 5px;border-radius:2px;background:rgba(255,255,255,.04);color:var(--pd)}
+.tag.ref{background:rgba(168,85,247,.1);color:#a78bfa}.tag.comp{background:rgba(59,130,246,.1);color:#60a5fa}.tag.chain{background:rgba(239,68,68,.1);color:#f87171}
+
+/* Coverage */
+.cov-grid{display:flex;flex-wrap:wrap;gap:4px}
+.cov-tag{font:500 10px var(--mono);padding:3px 7px;border-radius:3px;background:var(--ps);border:1px solid var(--pbr);color:var(--pd);transition:all .3s}
+.cov-tag.hit{background:rgba(74,222,128,.1);border-color:rgba(74,222,128,.3);color:#4ade80}
+
+/* Mitigation */
+.mit-item{background:var(--ps);border-radius:4px;padding:10px 12px;transition:opacity .2s}
+.mit-item.done{opacity:.5}
+.mit-top{display:flex;align-items:flex-start;gap:8px}
+.mit-check{width:18px;height:18px;border-radius:3px;border:2px solid var(--pbr);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s;margin-top:1px}
+.mit-check.checked{background:var(--green);border-color:var(--green)}
+.mit-check.checked::after{content:'';width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg);margin-top:-2px}
+.mit-title{font:600 12px var(--sans);color:#d1d5db;margin-bottom:2px}
+.mit-desc{font:400 11px/1.5 var(--sans);color:var(--pt)}
+.mit-meta{font:400 9px var(--mono);color:var(--pd);margin-top:3px}
+.mit-type{display:inline-block;padding:1px 5px;border-radius:2px;font:500 9px var(--mono);margin-right:4px}
+.mit-type-arch{background:rgba(139,92,246,.1);color:#a78bfa}
+.mit-type-config{background:rgba(59,130,246,.1);color:#60a5fa}
+.mit-type-process{background:rgba(245,158,11,.1);color:#fbbf24}
+.mit-type-tooling{background:rgba(16,185,129,.1);color:#34d399}
+
+/* Score bar in mitigate tab */
+.score-bar{background:var(--ps);border-radius:4px;padding:12px;margin-bottom:8px;text-align:center}
+.score-bar-label{font:500 11px var(--mono);color:var(--pd);margin-bottom:6px}
+.score-bar-track{height:8px;background:var(--pbr);border-radius:4px;overflow:hidden;margin-bottom:4px}
+.score-bar-fill{height:100%;border-radius:4px;transition:width .4s,background .4s}
+.score-bar-nums{display:flex;justify-content:space-between;font:500 11px var(--mono);color:var(--pd)}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="app-header">
+    <div class="app-brand">
+      <div class="app-brand-tag">Erythix - AI Security & Observability</div>
+      <h1>AI Threat Model Canvas</h1>
+    </div>
+    <div class="app-actions">
+      <div class="risk-badge">
+        <div><div class="risk-score-num low" id="riskNum">0</div><div class="risk-score-label">risk score</div></div>
+      </div>
+      <span class="mode-ind mode-connect" id="modeInd">LINKING MODE - click target</span>
+      <button class="btn btn-outline" onclick="exportPDF()">Export PDF</button>
+      <button class="btn-link" onclick="clearCanvas()">Clear</button>
+      <a href="mailto:contact@erythix.tech?subject=AI%20Threat%20Model" class="btn btn-dark">Request audit</a>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sb-title">Components</div>
+    <div class="sb-group"><div class="sb-group-label"><div class="sb-group-dot" style="background:#3b82f6"></div>Data</div>
+      <button class="comp-btn" onclick="addComp('training_data')"><span class="comp-icon">&#9632;</span>Training data</button>
+      <button class="comp-btn" onclick="addComp('rag_source')"><span class="comp-icon">&#9632;</span>RAG / knowledge base</button>
+      <button class="comp-btn" onclick="addComp('user_input')"><span class="comp-icon">&#9632;</span>User input</button>
+      <button class="comp-btn" onclick="addComp('file_upload')"><span class="comp-icon">&#9632;</span>File upload</button>
+    </div>
+    <div class="sb-group"><div class="sb-group-label"><div class="sb-group-dot" style="background:#8b5cf6"></div>Models</div>
+      <button class="comp-btn" onclick="addComp('llm_hosted')"><span class="comp-icon">&#9670;</span>Hosted LLM (API)</button>
+      <button class="comp-btn" onclick="addComp('llm_selfhosted')"><span class="comp-icon">&#9670;</span>Self-hosted LLM</button>
+      <button class="comp-btn" onclick="addComp('finetuned')"><span class="comp-icon">&#9670;</span>Fine-tuned model</button>
+      <button class="comp-btn" onclick="addComp('embedding')"><span class="comp-icon">&#9670;</span>Embedding model</button>
+    </div>
+    <div class="sb-group"><div class="sb-group-label"><div class="sb-group-dot" style="background:#f59e0b"></div>Interfaces</div>
+      <button class="comp-btn" onclick="addComp('api_endpoint')"><span class="comp-icon">&#9654;</span>API endpoint</button>
+      <button class="comp-btn" onclick="addComp('web_ui')"><span class="comp-icon">&#9654;</span>Web UI / chat</button>
+      <button class="comp-btn" onclick="addComp('internal_app')"><span class="comp-icon">&#9654;</span>Internal app</button>
+    </div>
+    <div class="sb-group"><div class="sb-group-label"><div class="sb-group-dot" style="background:#ef4444"></div>Tools</div>
+      <button class="comp-btn" onclick="addComp('tool_db')"><span class="comp-icon">&#9881;</span>Database access</button>
+      <button class="comp-btn" onclick="addComp('tool_api')"><span class="comp-icon">&#9881;</span>External API</button>
+      <button class="comp-btn" onclick="addComp('tool_code')"><span class="comp-icon">&#9881;</span>Code execution</button>
+      <button class="comp-btn" onclick="addComp('tool_email')"><span class="comp-icon">&#9881;</span>Email / messaging</button>
+      <button class="comp-btn" onclick="addComp('plugin_3p')"><span class="comp-icon">&#9881;</span>Third-party plugin</button>
+    </div>
+    <div class="sb-group"><div class="sb-group-label"><div class="sb-group-dot" style="background:#10b981"></div>Users</div>
+      <button class="comp-btn" onclick="addComp('user_external')"><span class="comp-icon">&#9679;</span>External user</button>
+      <button class="comp-btn" onclick="addComp('user_internal')"><span class="comp-icon">&#9679;</span>Internal user</button>
+      <button class="comp-btn" onclick="addComp('user_admin')"><span class="comp-icon">&#9679;</span>Admin / operator</button>
+    </div>
+    <div class="sb-hint">Click to place. Hover a node and click the link icon to connect components. Threats fire based on actual connections.</div>
+  </div>
+
+  <div class="canvas-wrap">
+    <div class="canvas-area" id="canvas">
+      <div class="canvas-grid"></div>
+      <svg class="conn-svg" id="connSvg"></svg>
+      <div class="canvas-hint" id="canvasHint">Place components and connect them.<br>Threats are generated from your architecture.</div>
+    </div>
+    <div class="attr-panel" id="attrPanel">
+      <h4 id="attrTitle">Attributes</h4>
+      <div id="attrRows"></div>
+    </div>
+  </div>
+
+  <div class="threats-panel">
+    <div class="tp-header">
+      <div class="tp-title">Threat analysis</div>
+      <div class="tp-sub" id="tpSub">0 threats identified</div>
+    </div>
+    <div class="tp-tabs">
+      <div class="tp-tab active" onclick="tpTab('threats',this)">Threats <span class="badge" id="bThreats">0</span></div>
+      <div class="tp-tab" onclick="tpTab('coverage',this)">Coverage</div>
+      <div class="tp-tab" onclick="tpTab('mitigate',this)">Mitigate</div>
+    </div>
+    <div class="tp-body">
+      <div class="tp-content active" id="tp-threats"><div class="tp-empty" id="tpEmpty">Add and connect components to generate threats.</div></div>
+      <div class="tp-content" id="tp-coverage">
+        <div style="font:500 11px var(--mono);color:var(--pd);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">OWASP LLM Top 10</div>
+        <div class="cov-grid" id="owaspGrid"></div>
+        <div style="font:500 11px var(--mono);color:var(--pd);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 6px">MITRE ATLAS</div>
+        <div class="cov-grid" id="mitreGrid"></div>
+      </div>
+      <div class="tp-content" id="tp-mitigate">
+        <div class="score-bar" id="mitScoreBar">
+          <div class="score-bar-label">Residual risk after mitigations</div>
+          <div class="score-bar-track"><div class="score-bar-fill" id="mitScoreFill" style="width:0;background:#4ade80"></div></div>
+          <div class="score-bar-nums"><span id="mitScoreCur">0</span><span>100</span></div>
+        </div>
+        <div id="mitList"><div class="tp-empty">Mitigations appear based on identified threats.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   COMPONENT & THREAT DEFINITIONS
+   ═══════════════════════════════════════════════════════ */
+const COMP_META={
+  training_data:{name:'Training Data',cat:'Data',color:'#3b82f6',
+    attrs:{sensitive:{label:'Sensitive data',default:false},external:{label:'External source',default:false}}},
+  rag_source:{name:'RAG / KB',cat:'Data',color:'#3b82f6',
+    attrs:{sensitive:{label:'Sensitive data',default:false},writable:{label:'User-writable',default:false}}},
+  user_input:{name:'User Input',cat:'Data',color:'#3b82f6',
+    attrs:{public:{label:'Public-facing',default:true},validated:{label:'Input validated',default:false}}},
+  file_upload:{name:'File Upload',cat:'Data',color:'#3b82f6',
+    attrs:{public:{label:'Public-facing',default:false},scanned:{label:'Content scanned',default:false}}},
+  llm_hosted:{name:'Hosted LLM',cat:'Model',color:'#8b5cf6',
+    attrs:{sensitive_ctx:{label:'Sensitive context',default:false},guardrails:{label:'Guardrails enabled',default:false}}},
+  llm_selfhosted:{name:'Self-hosted LLM',cat:'Model',color:'#8b5cf6',
+    attrs:{sensitive_ctx:{label:'Sensitive context',default:false},isolated:{label:'Network isolated',default:false}}},
+  finetuned:{name:'Fine-tuned Model',cat:'Model',color:'#8b5cf6',
+    attrs:{sensitive_ctx:{label:'Sensitive context',default:true},audited:{label:'Data audited',default:false}}},
+  embedding:{name:'Embedding Model',cat:'Model',color:'#8b5cf6',
+    attrs:{sensitive_ctx:{label:'Sensitive context',default:false}}},
+  api_endpoint:{name:'API Endpoint',cat:'Interface',color:'#f59e0b',
+    attrs:{public:{label:'Public-facing',default:false},authed:{label:'Auth required',default:true}}},
+  web_ui:{name:'Web UI',cat:'Interface',color:'#f59e0b',
+    attrs:{public:{label:'Public-facing',default:true},authed:{label:'Auth required',default:false}}},
+  internal_app:{name:'Internal App',cat:'Interface',color:'#f59e0b',
+    attrs:{authed:{label:'Auth required',default:true}}},
+  tool_db:{name:'Database',cat:'Tool',color:'#ef4444',
+    attrs:{sensitive:{label:'Sensitive data',default:true},readonly:{label:'Read-only access',default:false}}},
+  tool_api:{name:'External API',cat:'Tool',color:'#ef4444',
+    attrs:{authed:{label:'Auth required',default:true}}},
+  tool_code:{name:'Code Execution',cat:'Tool',color:'#ef4444',
+    attrs:{sandboxed:{label:'Sandboxed',default:false}}},
+  tool_email:{name:'Email',cat:'Tool',color:'#ef4444',
+    attrs:{approval:{label:'Human approval',default:false}}},
+  plugin_3p:{name:'3rd Party Plugin',cat:'Tool',color:'#ef4444',
+    attrs:{audited:{label:'Security audited',default:false},sandboxed:{label:'Sandboxed',default:false}}},
+  user_external:{name:'External User',cat:'User',color:'#10b981',attrs:{}},
+  user_internal:{name:'Internal User',cat:'User',color:'#10b981',attrs:{}},
+  user_admin:{name:'Admin',cat:'User',color:'#10b981',
+    attrs:{mfa:{label:'MFA enforced',default:false}}},
+};
+
+// Threats: {sev,title,desc,owasp,mitre,mitType(arch|config|process|tooling),mit,cond(fn(node)=>bool)}
+const COMP_THREATS={
+  user_input:[
+    {sev:'crit',title:'Direct prompt injection',desc:'Crafted input overrides system instructions.',owasp:'LLM01',mitre:'AML.T0051',mitType:'tooling',mit:'Multi-layer input validation: structural, semantic, signature matching.',cond:n=>true},
+    {sev:'high',title:'Jailbreak via persona substitution',desc:'DAN-style prompts disable guardrails.',owasp:'LLM01',mitre:'AML.T0051',mitType:'tooling',mit:'Continuously updated jailbreak signature DB + ML classifier.',cond:n=>true},
+    {sev:'med',title:'Model reconnaissance',desc:'Probing for model identity enables targeted attacks.',owasp:'LLM09',mitre:'AML.T0000',mitType:'config',mit:'Refuse metadata queries. Monitor probing patterns.',cond:n=>true},
+    {sev:'high',title:'Public attack surface amplification',desc:'Public-facing input without validation massively increases injection risk.',owasp:'LLM01',mitre:'AML.T0051',mitType:'arch',mit:'Rate limiting, CAPTCHA, behavioral analysis on public endpoints.',cond:n=>n.attrs.public&&!n.attrs.validated},
+  ],
+  file_upload:[
+    {sev:'crit',title:'Indirect injection via document',desc:'Hidden instructions in uploaded files manipulate model behavior.',owasp:'LLM01',mitre:'AML.T0051',mitType:'tooling',mit:'Content isolation: scan documents before model processing. Separate data/instruction channels.',cond:n=>!n.attrs.scanned},
+    {sev:'high',title:'Malicious payload in uploads',desc:'Files containing malware or encoded instructions.',owasp:'LLM05',mitre:'AML.T0010',mitType:'tooling',mit:'Sandbox processing. Validate types. Strip active content.',cond:n=>true},
+    {sev:'med',title:'Indirect injection (reduced)',desc:'Document scanning reduces but does not eliminate injection risk from uploaded files.',owasp:'LLM01',mitre:'AML.T0051',mitType:'tooling',mit:'Complement scanning with instruction/data separation architecture.',cond:n=>n.attrs.scanned},
+  ],
+  training_data:[
+    {sev:'high',title:'Training data poisoning',desc:'Compromised data introduces backdoors or bias.',owasp:'LLM03',mitre:'AML.T0020',mitType:'process',mit:'Data provenance tracking. Quality validation. Differential testing.',cond:n=>true},
+    {sev:'high',title:'PII memorization',desc:'Model memorizes and reproduces sensitive personal data from training set.',owasp:'LLM06',mitre:'AML.T0024',mitType:'process',mit:'Sanitize training data. Output scanning. Extraction testing.',cond:n=>n.attrs.sensitive},
+    {sev:'crit',title:'Uncontrolled external training data',desc:'External data sources can be manipulated by adversaries to poison the model.',owasp:'LLM03',mitre:'AML.T0020',mitType:'process',mit:'Validate external sources. Implement data integrity checks. Quarantine before use.',cond:n=>n.attrs.external},
+  ],
+  rag_source:[
+    {sev:'crit',title:'RAG poisoning',desc:'Writable knowledge base allows injecting content that alters model behavior.',owasp:'LLM03',mitre:'AML.T0020',mitType:'arch',mit:'Write controls on KB. Content integrity monitoring. Anomalous update detection.',cond:n=>n.attrs.writable},
+    {sev:'high',title:'Sensitive data via RAG retrieval',desc:'RAG surfaces confidential documents to unauthorized users.',owasp:'LLM06',mitre:'AML.T0024',mitType:'arch',mit:'Authorization-aware retrieval. Filter by user access level.',cond:n=>n.attrs.sensitive},
+    {sev:'med',title:'Indirect injection via ingested content',desc:'Web pages or documents in KB may contain hidden instructions.',owasp:'LLM01',mitre:'AML.T0051',mitType:'tooling',mit:'Scan ingested content for instruction patterns before indexing.',cond:n=>true},
+  ],
+  llm_hosted:[
+    {sev:'high',title:'Data exposure to provider',desc:'Prompts and context sent to external API expose business data.',owasp:'LLM06',mitre:'AML.T0024',mitType:'arch',mit:'Classify data sensitivity before calls. PII stripping. Consider self-hosting.',cond:n=>n.attrs.sensitive_ctx},
+    {sev:'med',title:'Third-party dependency risk',desc:'Provider outage, model changes, or policy shifts disrupt service.',owasp:'LLM05',mitre:'AML.T0010',mitType:'arch',mit:'Fallback models. Behavioral change monitoring. SLA review.',cond:n=>true},
+    {sev:'low',title:'API cost abuse',desc:'Adversarial queries exhaust API budgets.',owasp:'LLM04',mitre:'AML.T0029',mitType:'config',mit:'Per-user rate limiting. Budget alerts. Token capping.',cond:n=>true},
+  ],
+  llm_selfhosted:[
+    {sev:'high',title:'Model weight theft',desc:'Self-hosted weights can be exfiltrated through infrastructure compromise or systematic querying.',owasp:'LLM10',mitre:'AML.T0024',mitType:'arch',mit:'Restrict model file access. Anti-extraction: logit suppression, watermarking.',cond:n=>true},
+    {sev:'high',title:'Infrastructure attack surface',desc:'Self-hosting adds server security and patching responsibilities.',owasp:'LLM05',mitre:'AML.T0010',mitType:'arch',mit:'Harden serving infra. Isolate GPU nodes. Network segmentation.',cond:n=>!n.attrs.isolated},
+    {sev:'med',title:'GPU resource exhaustion',desc:'Adversarial prompts consume shared GPU resources.',owasp:'LLM04',mitre:'AML.T0029',mitType:'config',mit:'Request queuing, timeouts, token caps. GPU monitoring.',cond:n=>true},
+  ],
+  finetuned:[
+    {sev:'crit',title:'Fine-tuning data poisoning',desc:'Malicious samples in fine-tuning datasets implant persistent backdoors.',owasp:'LLM03',mitre:'AML.T0020',mitType:'process',mit:'Audit all fine-tuning data. Behavioral testing before and after.',cond:n=>!n.attrs.audited},
+    {sev:'high',title:'Overfitting leaks sensitive data',desc:'Fine-tuning on internal data increases memorization risk.',owasp:'LLM06',mitre:'AML.T0024',mitType:'process',mit:'Limit epochs. Differential privacy. Post-training extraction testing.',cond:n=>n.attrs.sensitive_ctx},
+    {sev:'high',title:'Model supply chain integrity',desc:'Compromised base models propagate vulnerabilities through fine-tuning.',owasp:'LLM05',mitre:'AML.T0010',mitType:'process',mit:'Verify base model provenance. Sign checkpoints. ML SBOM.',cond:n=>true},
+  ],
+  embedding:[
+    {sev:'med',title:'Embedding inversion attack',desc:'Vectors can be reversed to reconstruct original text, exposing data.',owasp:'LLM06',mitre:'AML.T0024',mitType:'arch',mit:'Restrict vector access. Monitor bulk extraction.',cond:n=>n.attrs.sensitive_ctx},
+    {sev:'low',title:'Adversarial embedding manipulation',desc:'Crafted inputs retrieve unrelated or malicious content.',owasp:'LLM01',mitre:'AML.T0051',mitType:'config',mit:'Similarity thresholds. Retrieval relevance validation.',cond:n=>true},
+  ],
+  api_endpoint:[
+    {sev:'high',title:'Unauthenticated API access',desc:'Missing auth allows unauthorized model access. No audit trail.',owasp:'LLM08',mitre:'AML.T0040',mitType:'config',mit:'Per-user auth with scoped tokens. Rate limiting.',cond:n=>!n.attrs.authed},
+    {sev:'crit',title:'Public unauthenticated API',desc:'Public API without auth exposes model to mass automated attacks.',owasp:'LLM08',mitre:'AML.T0040',mitType:'arch',mit:'Require authentication. Implement proof-of-work or CAPTCHA.',cond:n=>n.attrs.public&&!n.attrs.authed},
+    {sev:'med',title:'Model artifacts in API response',desc:'Responses may leak logits or confidence scores enabling extraction.',owasp:'LLM10',mitre:'AML.T0024',mitType:'config',mit:'Sanitize responses. Suppress probability distributions.',cond:n=>true},
+  ],
+  web_ui:[
+    {sev:'high',title:'XSS via model output',desc:'Model outputs with HTML/JS execute in user browsers.',owasp:'LLM02',mitre:'AML.T0048',mitType:'arch',mit:'Output sanitization. Content Security Policy. Text-only rendering.',cond:n=>true},
+    {sev:'high',title:'Public XSS surface',desc:'Public web UI amplifies XSS impact to all visitors.',owasp:'LLM02',mitre:'AML.T0048',mitType:'arch',mit:'Strict CSP. Server-side sanitization. Input validation.',cond:n=>n.attrs.public},
+    {sev:'med',title:'Session manipulation via model',desc:'Model output influences session tokens or client storage.',owasp:'LLM02',mitre:'AML.T0048',mitType:'arch',mit:'Isolate output rendering from session management.',cond:n=>true},
+  ],
+  internal_app:[
+    {sev:'med',title:'Lateral movement via LLM',desc:'Internal app exploited to reach other systems.',owasp:'LLM08',mitre:'AML.T0040',mitType:'arch',mit:'Network segmentation. Zero-trust model access.',cond:n=>true},
+    {sev:'low',title:'Shadow AI',desc:'Unauthorized AI tools connected to internal systems.',owasp:'LLM09',mitre:'AML.T0000',mitType:'process',mit:'AI usage inventory. API gateway monitoring.',cond:n=>true},
+  ],
+  tool_db:[
+    {sev:'crit',title:'SQL injection via model queries',desc:'Adversarial prompts generate malicious database queries.',owasp:'LLM02',mitre:'AML.T0048',mitType:'arch',mit:'Parameterized queries only. Read-only where possible. Schema validation.',cond:n=>!n.attrs.readonly},
+    {sev:'high',title:'Unauthorized data access via model',desc:'Model accesses records beyond user authorization.',owasp:'LLM08',mitre:'AML.T0040',mitType:'arch',mit:'User-level access controls. Row-level security.',cond:n=>n.attrs.sensitive},
+    {sev:'med',title:'Data read via model (read-only)',desc:'Even read-only DB access allows sensitive data extraction through the model.',owasp:'LLM06',mitre:'AML.T0024',mitType:'config',mit:'Column-level restrictions. Query logging and anomaly detection.',cond:n=>n.attrs.readonly&&n.attrs.sensitive},
+  ],
+  tool_api:[
+    {sev:'high',title:'SSRF via model API calls',desc:'Model prompted to call internal or cloud metadata endpoints.',owasp:'LLM08',mitre:'AML.T0040',mitType:'config',mit:'URL allowlist. Block internal network. Validate model-initiated requests.',cond:n=>true},
+    {sev:'med',title:'Credential leak in API calls',desc:'Tool API keys can be extracted via prompt injection.',owasp:'LLM06',mitre:'AML.T0024',mitType:'arch',mit:'Short-lived scoped tokens. Never embed credentials in prompts.',cond:n=>true},
+  ],
+  tool_code:[
+    {sev:'crit',title:'Arbitrary code execution',desc:'Model runs attacker-controlled code on host.',owasp:'LLM08',mitre:'AML.T0040',mitType:'arch',mit:'Isolated containers. Library restrictions. Execution timeouts.',cond:n=>!n.attrs.sandboxed},
+    {sev:'high',title:'Sandbox escape risk',desc:'Sandboxed execution reduces but doesn\'t eliminate code execution risk.',owasp:'LLM08',mitre:'AML.T0040',mitType:'arch',mit:'Defense in depth: container + seccomp + network isolation.',cond:n=>n.attrs.sandboxed},
+    {sev:'high',title:'File system access via code',desc:'Code execution reads sensitive files or writes malware.',owasp:'LLM08',mitre:'AML.T0040',mitType:'config',mit:'Read-only mounts. Network restrictions from sandbox.',cond:n=>!n.attrs.sandboxed},
+  ],
+  tool_email:[
+    {sev:'crit',title:'AI-generated phishing',desc:'Model sends convincing phishing or impersonation emails.',owasp:'LLM08',mitre:'AML.T0040',mitType:'process',mit:'Human approval for all emails. Recipient allowlists.',cond:n=>!n.attrs.approval},
+    {sev:'high',title:'Data exfiltration via email',desc:'Injection instructs model to email sensitive data externally.',owasp:'LLM06',mitre:'AML.T0024',mitType:'arch',mit:'Outbound content monitoring. Domain restrictions. DLP.',cond:n=>true},
+  ],
+  plugin_3p:[
+    {sev:'crit',title:'Malicious plugin',desc:'Unaudited third-party plugin contains backdoors or data collection.',owasp:'LLM05',mitre:'AML.T0010',mitType:'process',mit:'Audit before deployment. Sandbox execution. Monitor network activity.',cond:n=>!n.attrs.audited},
+    {sev:'high',title:'Plugin privilege escalation',desc:'Plugin obtains more permissions than necessary.',owasp:'LLM07',mitre:'AML.T0040',mitType:'arch',mit:'Least-privilege. Capability-based access control.',cond:n=>true},
+    {sev:'med',title:'Plugin supply chain',desc:'Plugin updates introduce vulnerabilities.',owasp:'LLM05',mitre:'AML.T0010',mitType:'process',mit:'Pin versions. Verify update integrity. Plugin SBOM.',cond:n=>true},
+  ],
+  user_external:[
+    {sev:'high',title:'Adversarial external users',desc:'Highest attack motivation, lowest trust. All input potentially hostile.',owasp:'LLM01',mitre:'AML.T0051',mitType:'tooling',mit:'Maximum input validation. Aggressive rate limiting. Behavioral analysis.',cond:n=>true},
+  ],
+  user_internal:[
+    {sev:'med',title:'Insider threat via LLM',desc:'Internal users access data beyond role or extract IP.',owasp:'LLM06',mitre:'AML.T0024',mitType:'process',mit:'Role-based model access. Audit queries. Unusual pattern detection.',cond:n=>true},
+  ],
+  user_admin:[
+    {sev:'high',title:'Compromised admin account',desc:'Admin credentials allow system prompt, data, and permission changes.',owasp:'LLM08',mitre:'AML.T0040',mitType:'config',mit:'MFA. Audit logging for config changes. Separation of duties.',cond:n=>!n.attrs.mfa},
+    {sev:'med',title:'Excessive admin privileges',desc:'Over-privileged accounts make unreviewed changes.',owasp:'LLM08',mitre:'AML.T0040',mitType:'process',mit:'Least-privilege. Approval workflows for critical changes.',cond:n=>true},
+  ],
+};
+
+const COMBO_THREATS=[
+  {needs:['user_input','tool_code'],needsConn:true,sev:'crit',title:'Prompt-to-code execution chain',desc:'User input flows to code execution: direct path from injection to host compromise.',owasp:'LLM08',mitre:'AML.T0040',mitType:'arch',mit:'Intent verification between prompt and code execution. Human approval for code.'},
+  {needs:['user_input','tool_db'],needsConn:true,sev:'crit',title:'Prompt-to-database attack chain',desc:'Prompts generate malicious DB queries. Data extraction or modification.',owasp:'LLM02',mitre:'AML.T0048',mitType:'arch',mit:'Parameterized queries. Schema validation. No raw model output to DB.'},
+  {needs:['user_input','tool_email'],needsConn:true,sev:'crit',title:'Prompt-to-email abuse chain',desc:'Injection triggers email sending: phishing and data exfiltration.',owasp:'LLM08',mitre:'AML.T0040',mitType:'arch',mit:'Decouple prompts from email actions. Human confirmation required.'},
+  {needs:['file_upload','llm_hosted'],needsConn:true,sev:'high',title:'Document injection to hosted model',desc:'Uploaded docs with hidden instructions sent to API without isolation.',owasp:'LLM01',mitre:'AML.T0051',mitType:'tooling',mit:'Document scanning before API submission. Content/instruction separation.'},
+  {needs:['file_upload','llm_selfhosted'],needsConn:true,sev:'high',title:'Document injection to self-hosted model',desc:'Uploaded docs processed by local model may access local resources.',owasp:'LLM01',mitre:'AML.T0051',mitType:'tooling',mit:'Document scanning pipeline. Isolated processing.'},
+  {needs:['rag_source','user_external'],needsConn:true,sev:'high',title:'RAG exploitation by external users',desc:'External users craft queries to surface sensitive internal documents.',owasp:'LLM06',mitre:'AML.T0024',mitType:'arch',mit:'Authorization-aware retrieval. Filter by access level.'},
+  {needs:['web_ui','user_external'],needsConn:true,sev:'high',title:'Public-facing XSS via model',desc:'External users inject prompts generating XSS payloads for other users.',owasp:'LLM02',mitre:'AML.T0048',mitType:'arch',mit:'Output sanitization. Strict CSP. Text-only rendering.'},
+  {needs:['plugin_3p','tool_db'],needsConn:true,sev:'high',title:'Plugin-to-database escalation',desc:'Compromised plugin gains DB access through model permissions.',owasp:'LLM07',mitre:'AML.T0040',mitType:'arch',mit:'Isolate plugins from DB. Per-plugin permission scoping.'},
+  {needs:['finetuned','training_data'],needsConn:true,sev:'high',title:'End-to-end pipeline poisoning',desc:'Compromised training data persists as backdoors in fine-tuned production model.',owasp:'LLM03',mitre:'AML.T0020',mitType:'process',mit:'Data validation at every stage. Behavioral testing after each run.'},
+  {needs:['user_admin','finetuned'],needsConn:true,sev:'high',title:'Admin compromise enables poisoning',desc:'Compromised admin modifies fine-tuning data or model config.',owasp:'LLM03',mitre:'AML.T0020',mitType:'process',mit:'MFA + approval for fine-tuning. Immutable audit logs.'},
+  {needs:['user_external','api_endpoint'],needsConn:true,sev:'high',title:'Public API abuse',desc:'External users target API with automated attack campaigns.',owasp:'LLM04',mitre:'AML.T0029',mitType:'config',mit:'Authentication. Proof-of-work. Progressive rate limiting.'},
+  {needs:['tool_code','tool_api'],needsConn:true,sev:'crit',title:'Code exec to external API pivot',desc:'Code execution calls external APIs, enabling data exfiltration or SSRF.',owasp:'LLM08',mitre:'AML.T0040',mitType:'arch',mit:'Block outbound from code sandbox. Allowlist APIs.'},
+];
+
+const OWASP_IDS=['LLM01','LLM02','LLM03','LLM04','LLM05','LLM06','LLM07','LLM08','LLM09','LLM10'];
+const OWASP_NAMES={LLM01:'Prompt Injection',LLM02:'Insecure Output',LLM03:'Data Poisoning',LLM04:'Model DoS',LLM05:'Supply Chain',LLM06:'Data Disclosure',LLM07:'Insecure Plugin',LLM08:'Excessive Agency',LLM09:'Overreliance',LLM10:'Model Theft'};
+const MITRE_IDS=['AML.T0000','AML.T0010','AML.T0020','AML.T0024','AML.T0029','AML.T0040','AML.T0048','AML.T0051'];
+const SEV_W={crit:10,high:6,med:3,low:1};
+
+/* ═══════════════════════════════════════════════════════
+   STATE
+   ═══════════════════════════════════════════════════════ */
+let nodes=[];      // {id, type, x, y, attrs:{key:bool}}
+let edges=[];      // {from:id, to:id}
+let idCounter=0;
+let connecting=null; // source node id when in link mode
+let dragNode=null;
+let dragOffset={x:0,y:0};
+let mitigated=new Set(); // set of threat titles marked as mitigated
+let currentThreats=[];
+
+/* ═══════════════════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════════════════ */
+function init(){
+  const og=document.getElementById('owaspGrid');
+  OWASP_IDS.forEach(id=>{const t=document.createElement('div');t.className='cov-tag';t.id='ow-'+id;t.textContent=id;t.title=OWASP_NAMES[id];og.appendChild(t);});
+  const mg=document.getElementById('mitreGrid');
+  MITRE_IDS.forEach(id=>{const t=document.createElement('div');t.className='cov-tag';t.id='mi-'+id.replace(/\./g,'-');t.textContent=id;mg.appendChild(t);});
+}
+
+/* ═══════════════════════════════════════════════════════
+   NODE PLACEMENT
+   ═══════════════════════════════════════════════════════ */
+function addComp(type){
+  if(connecting){cancelConnect();return;}
+  document.getElementById('canvasHint')?.remove();
+  const canvas=document.getElementById('canvas');
+  const rect=canvas.getBoundingClientRect();
+  const id=++idCounter;
+  const meta=COMP_META[type];
+  const attrs={};
+  Object.keys(meta.attrs||{}).forEach(k=>attrs[k]=meta.attrs[k].default);
+  const x=40+Math.random()*(rect.width-200);
+  const y=30+Math.random()*(rect.height-120);
+  const node={id,type,x,y,attrs};
+  nodes.push(node);
+  renderNode(node);
+  regenerate();
+}
+
+function renderNode(node){
+  const meta=COMP_META[node.type];
+  const el=document.createElement('div');
+  el.className='node';el.id='nd-'+node.id;
+  el.style.left=node.x+'px';el.style.top=node.y+'px';
+  updateNodeHTML(el,node);
+
+  el.onmousedown=function(e){
+    if(e.target.closest('.node-act'))return;
+    if(connecting){finishConnect(node.id);return;}
+    dragNode=node.id;
+    const r=el.getBoundingClientRect();
+    dragOffset={x:e.clientX-r.left,y:e.clientY-r.top};
+    el.classList.add('selected');
+    e.preventDefault();
+  };
+
+  document.getElementById('canvas').appendChild(el);
+}
+
+function updateNodeHTML(el,node){
+  const meta=COMP_META[node.type];
+  const attrTags=Object.keys(node.attrs).map(k=>{
+    const m=meta.attrs[k];
+    const cls=node.attrs[k]?'node-attr on'+(k==='public'?' pub':''):'node-attr';
+    return '<div class="'+cls+'">'+m.label.split(' ')[0]+'</div>';
+  }).join('');
+  const threats=(COMP_THREATS[node.type]||[]).filter(t=>t.cond(node));
+  const dots=threats.map(t=>'<div class="node-threat-dot nt-'+t.sev+'"></div>').join('');
+  el.innerHTML='<div class="node-actions">'
+    +'<div class="node-act node-act-cfg" onclick="openAttrs('+node.id+',event)" title="Attributes">&#9881;</div>'
+    +'<div class="node-act node-act-link" onclick="startConnect('+node.id+')" title="Link to another">&#8594;</div>'
+    +'<div class="node-act node-act-del" onclick="removeNode('+node.id+')" title="Remove">&times;</div>'
+    +'</div>'
+    +'<div class="node-header"><div class="node-color" style="background:'+meta.color+'"></div><div class="node-name">'+meta.name+'</div></div>'
+    +'<div class="node-type">'+meta.cat+'</div>'
+    +(attrTags?'<div class="node-attrs">'+attrTags+'</div>':'')
+    +'<div class="node-threats">'+dots+'</div>';
+}
+
+function refreshNodeEl(nodeId){
+  const node=nodes.find(n=>n.id===nodeId);
+  const el=document.getElementById('nd-'+nodeId);
+  if(node&&el)updateNodeHTML(el,node);
+}
+
+/* ═══════════════════════════════════════════════════════
+   DRAG
+   ═══════════════════════════════════════════════════════ */
+document.addEventListener('mousemove',function(e){
+  if(!dragNode)return;
+  const el=document.getElementById('nd-'+dragNode);
+  const cr=document.getElementById('canvas').getBoundingClientRect();
+  const x=e.clientX-cr.left-dragOffset.x;
+  const y=e.clientY-cr.top-dragOffset.y;
+  el.style.left=Math.max(0,x)+'px';el.style.top=Math.max(0,y)+'px';
+  const n=nodes.find(n=>n.id===dragNode);
+  if(n){n.x=Math.max(0,x);n.y=Math.max(0,y);}
+  drawEdges();
+});
+document.addEventListener('mouseup',function(){
+  if(dragNode){
+    const el=document.getElementById('nd-'+dragNode);
+    if(el)el.classList.remove('selected');
+    dragNode=null;
+  }
+});
+
+/* ═══════════════════════════════════════════════════════
+   CONNECTIONS
+   ═══════════════════════════════════════════════════════ */
+function startConnect(nodeId){
+  if(connecting===nodeId){cancelConnect();return;}
+  connecting=nodeId;
+  document.getElementById('modeInd').classList.add('active');
+  document.getElementById('nd-'+nodeId).classList.add('connect-source');
+  nodes.forEach(n=>{if(n.id!==nodeId){const el=document.getElementById('nd-'+n.id);if(el)el.classList.add('connect-target');}});
+}
+
+function finishConnect(targetId){
+  if(!connecting||connecting===targetId)return;
+  const exists=edges.some(e=>(e.from===connecting&&e.to===targetId)||(e.from===targetId&&e.to===connecting));
+  if(!exists)edges.push({from:connecting,to:targetId});
+  cancelConnect();
+  drawEdges();
+  regenerate();
+}
+
+function cancelConnect(){
+  if(connecting){
+    const el=document.getElementById('nd-'+connecting);if(el)el.classList.remove('connect-source');
+  }
+  connecting=null;
+  document.getElementById('modeInd').classList.remove('active');
+  document.querySelectorAll('.connect-target').forEach(e=>e.classList.remove('connect-target'));
+}
+
+function drawEdges(){
+  const svg=document.getElementById('connSvg');
+  svg.innerHTML='';
+  // Find threat edges
+  const threatPairs=new Set();
+  currentThreats.filter(t=>t._combo).forEach(t=>{
+    const key=[t._fromId,t._toId].sort().join('-');
+    threatPairs.add(key);
+  });
+
+  edges.forEach(e=>{
+    const fn=nodes.find(n=>n.id===e.from),tn=nodes.find(n=>n.id===e.to);
+    if(!fn||!tn)return;
+    const fe=document.getElementById('nd-'+e.from),te=document.getElementById('nd-'+e.to);
+    if(!fe||!te)return;
+    const fx=fn.x+fe.offsetWidth/2,fy=fn.y+fe.offsetHeight/2;
+    const tx=tn.x+te.offsetWidth/2,ty=tn.y+te.offsetHeight/2;
+    const key=[e.from,e.to].sort().join('-');
+    const isThreat=threatPairs.has(key);
+    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',fx);line.setAttribute('y1',fy);
+    line.setAttribute('x2',tx);line.setAttribute('y2',ty);
+    line.setAttribute('class','conn-line'+(isThreat?' threat':''));
+    svg.appendChild(line);
+  });
+}
+
+function removeNode(id){
+  const el=document.getElementById('nd-'+id);if(el)el.remove();
+  nodes=nodes.filter(n=>n.id!==id);
+  edges=edges.filter(e=>e.from!==id&&e.to!==id);
+  closeAttrs();
+  if(connecting===id)cancelConnect();
+  drawEdges();
+  regenerate();
+  if(nodes.length===0){
+    const canvas=document.getElementById('canvas');
+    const hint=document.createElement('div');hint.className='canvas-hint';hint.id='canvasHint';
+    hint.innerHTML='Place components and connect them.<br>Threats are generated from your architecture.';
+    canvas.appendChild(hint);
+  }
+}
+
+function clearCanvas(){
+  nodes.forEach(n=>{const el=document.getElementById('nd-'+n.id);if(el)el.remove();});
+  nodes=[];edges=[];idCounter=0;mitigated=new Set();cancelConnect();closeAttrs();drawEdges();regenerate();
+  const canvas=document.getElementById('canvas');
+  if(!document.getElementById('canvasHint')){
+    const hint=document.createElement('div');hint.className='canvas-hint';hint.id='canvasHint';
+    hint.innerHTML='Place components and connect them.<br>Threats are generated from your architecture.';
+    canvas.appendChild(hint);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   ATTRIBUTES PANEL
+   ═══════════════════════════════════════════════════════ */
+let attrNodeId=null;
+function openAttrs(nodeId,e){
+  e.stopPropagation();
+  const node=nodes.find(n=>n.id===nodeId);if(!node)return;
+  const meta=COMP_META[node.type];
+  const keys=Object.keys(meta.attrs||{});
+  if(keys.length===0)return;
+  attrNodeId=nodeId;
+  const panel=document.getElementById('attrPanel');
+  document.getElementById('attrTitle').textContent=meta.name+' attributes';
+  const rows=document.getElementById('attrRows');
+  rows.innerHTML='';
+  keys.forEach(k=>{
+    const m=meta.attrs[k];
+    const on=node.attrs[k];
+    const row=document.createElement('div');row.className='attr-row';
+    row.innerHTML='<span class="attr-label">'+m.label+'</span><div class="attr-toggle'+(on?' on':'')+'" onclick="toggleAttr(\''+k+'\',this)"></div>';
+    rows.appendChild(row);
+  });
+  const ndEl=document.getElementById('nd-'+nodeId);
+  const cr=document.getElementById('canvas').parentElement.getBoundingClientRect();
+  const nr=ndEl.getBoundingClientRect();
+  panel.style.left=(nr.right-cr.left+8)+'px';
+  panel.style.top=(nr.top-cr.top)+'px';
+  panel.classList.add('show');
+}
+
+function toggleAttr(key,el){
+  const node=nodes.find(n=>n.id===attrNodeId);if(!node)return;
+  node.attrs[key]=!node.attrs[key];
+  el.classList.toggle('on');
+  refreshNodeEl(attrNodeId);
+  regenerate();
+}
+
+function closeAttrs(){document.getElementById('attrPanel').classList.remove('show');attrNodeId=null;}
+document.addEventListener('click',function(e){
+  if(attrNodeId&&!e.target.closest('.attr-panel')&&!e.target.closest('.node-act-cfg'))closeAttrs();
+  if(connecting&&!e.target.closest('.node')&&!e.target.closest('.node-act'))cancelConnect();
+});
+
+/* ═══════════════════════════════════════════════════════
+   THREAT ENGINE
+   ═══════════════════════════════════════════════════════ */
+function areConnected(id1,id2){
+  // BFS: are they connected through any path?
+  const adj={};
+  nodes.forEach(n=>adj[n.id]=[]);
+  edges.forEach(e=>{adj[e.from]?.push(e.to);adj[e.to]?.push(e.from);});
+  const visited=new Set();
+  const queue=[id1];visited.add(id1);
+  while(queue.length){
+    const cur=queue.shift();
+    if(cur===id2)return true;
+    (adj[cur]||[]).forEach(nb=>{if(!visited.has(nb)){visited.add(nb);queue.push(nb);}});
+  }
+  return false;
+}
+
+function directlyConnected(id1,id2){
+  return edges.some(e=>(e.from===id1&&e.to===id2)||(e.from===id2&&e.to===id1));
+}
+
+function regenerate(){
+  const types=new Set(nodes.map(n=>n.type));
+  let threats=[];
+
+  // Per-component threats (conditional on attributes)
+  nodes.forEach(node=>{
+    (COMP_THREATS[node.type]||[]).filter(t=>t.cond(node)).forEach(t=>{
+      threats.push({...t,source:COMP_META[node.type].name,_nodeId:node.id,_combo:false});
+    });
+  });
+
+  // Combo threats (require connection path)
+  COMBO_THREATS.forEach(ct=>{
+    const matchNodes=ct.needs.map(type=>nodes.filter(n=>n.type===type)).filter(arr=>arr.length>0);
+    if(matchNodes.length<ct.needs.length)return;
+    // Check all pairs
+    const n1List=nodes.filter(n=>n.type===ct.needs[0]);
+    const n2List=nodes.filter(n=>n.type===ct.needs[1]);
+    for(const n1 of n1List){
+      for(const n2 of n2List){
+        if(n1.id===n2.id)continue;
+        const connected=ct.needsConn?areConnected(n1.id,n2.id):true;
+        if(connected){
+          threats.push({...ct,source:COMP_META[ct.needs[0]].name+' \u2192 '+COMP_META[ct.needs[1]].name,_combo:true,_fromId:n1.id,_toId:n2.id});
+        }
+      }
+    }
+  });
+
+  // Dedup
+  const seen=new Set();
+  threats=threats.filter(t=>{const k=t.title+'-'+(t._nodeId||'')+(t._fromId||'')+(t._toId||'');if(seen.has(k))return false;seen.add(k);return true;});
+  // Also dedup by title (keep highest sev)
+  const byTitle={};
+  threats.forEach(t=>{if(!byTitle[t.title]||SEV_W[t.sev]>SEV_W[byTitle[t.title].sev])byTitle[t.title]=t;});
+  threats=Object.values(byTitle);
+
+  const sevOrder={crit:0,high:1,med:2,low:3};
+  threats.sort((a,b)=>(sevOrder[a.sev]||9)-(sevOrder[b.sev]||9));
+
+  currentThreats=threats;
+  renderThreats(threats);
+  renderCoverage(threats);
+  renderMitigations(threats);
+  updateRiskScore(threats);
+  drawEdges();
+}
+
+function renderThreats(threats){
+  const c=document.getElementById('tp-threats');
+  if(threats.length===0){
+    c.innerHTML='<div class="tp-empty">Add and connect components to generate threats.</div>';
+    document.getElementById('tpSub').textContent='0 threats identified';
+    document.getElementById('bThreats').textContent='0';
+    return;
+  }
+  const counts={crit:0,high:0,med:0,low:0};
+  threats.forEach(t=>counts[t.sev]=(counts[t.sev]||0)+1);
+  let html='<div class="tp-stats">';
+  html+='<div class="tps"><div class="tps-v r">'+counts.crit+'</div><div class="tps-l">Critical</div></div>';
+  html+='<div class="tps"><div class="tps-v o">'+counts.high+'</div><div class="tps-l">High</div></div>';
+  html+='<div class="tps"><div class="tps-v y">'+counts.med+'</div><div class="tps-l">Medium</div></div>';
+  html+='<div class="tps"><div class="tps-v">'+counts.low+'</div><div class="tps-l">Low</div></div>';
+  html+='</div>';
+
+  threats.forEach(t=>{
+    let tags='';
+    if(t.owasp)tags+='<span class="tag ref">'+t.owasp+'</span>';
+    if(t.mitre)tags+='<span class="tag ref">'+t.mitre+'</span>';
+    if(t._combo)tags+='<span class="tag chain">attack chain</span>';
+    tags+='<span class="tag comp">'+t.source+'</span>';
+    html+='<div class="tc '+t.sev+'"><div class="tc-top"><span class="sev sev-'+t.sev+'">'+{crit:'CRITICAL',high:'HIGH',med:'MEDIUM',low:'LOW'}[t.sev]+'</span><span class="tc-source">'+t.source+'</span></div><div class="tc-title">'+t.title+'</div><div class="tc-desc">'+t.desc+'</div><div class="tc-tags">'+tags+'</div></div>';
+  });
+
+  c.innerHTML=html;
+  document.getElementById('tpSub').textContent=threats.length+' threat'+(threats.length>1?'s':'')+' identified';
+  document.getElementById('bThreats').textContent=threats.length;
+}
+
+function renderCoverage(threats){
+  const oh=new Set(),mh=new Set();
+  threats.forEach(t=>{if(t.owasp)oh.add(t.owasp);if(t.mitre)mh.add(t.mitre.split('.').slice(0,2).join('.'));});
+  OWASP_IDS.forEach(id=>{const el=document.getElementById('ow-'+id);if(el)el.className='cov-tag'+(oh.has(id)?' hit':'');});
+  MITRE_IDS.forEach(id=>{const el=document.getElementById('mi-'+id.replace(/\./g,'-'));if(el)el.className='cov-tag'+(mh.has(id)?' hit':'');});
+}
+
+function renderMitigations(threats){
+  const c=document.getElementById('mitList');
+  if(threats.length===0){c.innerHTML='<div class="tp-empty">Mitigations appear based on identified threats.</div>';return;}
+  const typeLabel={arch:'Architecture',config:'Configuration',process:'Process',tooling:'Tooling'};
+  const typeCls={arch:'mit-type-arch',config:'mit-type-config',process:'mit-type-process',tooling:'mit-type-tooling'};
+  const priority=threats.filter(t=>t.sev==='crit'||t.sev==='high');
+  const rest=threats.filter(t=>t.sev==='med'||t.sev==='low');
+  let html='';
+  const render=(list,label)=>{
+    if(list.length===0)return;
+    html+='<div style="font:500 10px var(--mono);color:var(--pd);text-transform:uppercase;letter-spacing:.4px;margin:6px 0 4px">'+label+'</div>';
+    list.forEach(t=>{
+      if(!t.mit)return;
+      const checked=mitigated.has(t.title);
+      const cCls=checked?'mit-check checked':'mit-check';
+      const iCls=checked?'mit-item done':'mit-item';
+      html+='<div class="'+iCls+'"><div class="mit-top"><div class="'+cCls+'" onclick="toggleMit(\''+esc(t.title)+'\',this)"></div><div><div class="mit-title">'+t.title+'</div><div class="mit-desc">'+t.mit+'</div>';
+      html+='<div class="mit-meta"><span class="mit-type '+(typeCls[t.mitType]||'')+'">'+(typeLabel[t.mitType]||'')+'</span>';
+      if(t.owasp)html+=t.owasp+' ';
+      html+=t.source+'</div></div></div></div>';
+    });
+  };
+  render(priority,'Priority (critical + high)');
+  render(rest,'Additional (medium + low)');
+  c.innerHTML=html;
+  updateMitScore();
+}
+
+function toggleMit(title,el){
+  if(mitigated.has(title))mitigated.delete(title);else mitigated.add(title);
+  el.classList.toggle('checked');
+  el.closest('.mit-item').classList.toggle('done');
+  updateMitScore();
+  updateRiskScore(currentThreats);
+}
+
+function updateMitScore(){
+  const total=currentThreats.length;
+  if(total===0)return;
+  const mitCount=currentThreats.filter(t=>mitigated.has(t.title)).length;
+  const pct=Math.round((mitCount/total)*100);
+  const residual=100-pct;
+  document.getElementById('mitScoreFill').style.width=residual+'%';
+  document.getElementById('mitScoreFill').style.background=residual>60?'#ef4444':residual>30?'#f59e0b':'#4ade80';
+  document.getElementById('mitScoreCur').textContent=residual;
+}
+
+function updateRiskScore(threats){
+  let raw=0,max=0;
+  threats.forEach(t=>{
+    const w=SEV_W[t.sev]||1;
+    max+=w;
+    if(!mitigated.has(t.title))raw+=w;
+  });
+  const score=max>0?Math.round((raw/max)*100):0;
+  const el=document.getElementById('riskNum');
+  el.textContent=score;
+  el.className='risk-score-num'+(score>=60?' high':score>=30?' med':' low');
+}
+
+/* ═══════════════════════════════════════════════════════
+   TAB
+   ═══════════════════════════════════════════════════════ */
+function tpTab(id,el){
+  document.querySelectorAll('.tp-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.tp-content').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tp-'+id).classList.add('active');
+}
+
+function esc(s){return s.replace(/'/g,"\\'").replace(/"/g,'&quot;');}
+
+/* ═══════════════════════════════════════════════════════
+   PDF EXPORT
+   ═══════════════════════════════════════════════════════ */
+function exportPDF(){
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const W=210,H=297;
+  let y;
+
+  // Cover
+  doc.setFillColor(27,29,33);doc.rect(0,0,W,H,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(102,107,116);
+  doc.text('ERYTHIX - AI Security & Observability',20,25);
+  doc.setFillColor(51,54,64);doc.roundedRect(20,30,35,7,1.5,1.5,'F');
+  doc.setFontSize(7.5);doc.setTextColor(136,141,152);doc.text('THREAT MODEL',22.5,34.8);
+  doc.setFontSize(28);doc.setTextColor(255,255,255);doc.text('AI Threat Model',20,58);doc.text('Canvas Report',20,70);
+  doc.setFontSize(12);doc.setTextColor(201,209,217);
+  doc.text('Architecture threat analysis',20,82);
+  doc.text('OWASP LLM Top 10 + MITRE ATLAS',20,90);
+  doc.setFontSize(10);doc.setTextColor(102,107,116);
+  doc.text(new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}),20,106);
+  const types=[...new Set(nodes.map(n=>n.type))];
+  doc.setFontSize(9);doc.text('Components: '+types.map(t=>COMP_META[t].name).join(', '),20,118);
+  doc.text('Connections: '+edges.length,20,124);
+
+  // Executive summary page
+  doc.addPage();
+  doc.setFillColor(255,255,255);doc.rect(0,0,W,H,'F');
+  y=25;
+  doc.setFont('helvetica','bold');doc.setFontSize(20);doc.setTextColor(26,26,26);
+  doc.text('Executive summary',20,y);y+=8;
+  doc.setDrawColor(212,214,219);doc.line(20,y,190,y);y+=10;
+
+  const threats=currentThreats;
+  const counts={crit:0,high:0,med:0,low:0};
+  threats.forEach(t=>counts[t.sev]=(counts[t.sev]||0)+1);
+
+  // Risk score
+  let rawScore=0,maxScore=0;
+  threats.forEach(t=>{const w=SEV_W[t.sev]||1;maxScore+=w;if(!mitigated.has(t.title))rawScore+=w;});
+  const riskPct=maxScore>0?Math.round((rawScore/maxScore)*100):0;
+  const mitPct=threats.length>0?Math.round((mitigated.size/threats.length)*100):0;
+
+  doc.setFont('helvetica','bold');doc.setFontSize(42);
+  const rc=riskPct>=60?[163,36,59]:riskPct>=30?[138,80,0]:[26,105,68];
+  doc.setTextColor(rc[0],rc[1],rc[2]);doc.text(riskPct+'',20,y+14);
+  doc.setFontSize(14);doc.text('/100 risk score',48,y+14);
+  y+=22;
+
+  doc.setFont('helvetica','normal');doc.setFontSize(11);doc.setTextColor(68,68,68);
+  doc.text(threats.length+' threats identified  |  Critical: '+counts.crit+'  |  High: '+counts.high+'  |  Medium: '+counts.med+'  |  Low: '+counts.low,20,y);y+=6;
+  doc.text(mitigated.size+' mitigations applied ('+mitPct+'% coverage)  |  '+nodes.length+' components  |  '+edges.length+' connections',20,y);y+=12;
+
+  // Top 3 critical threats
+  doc.setFont('helvetica','bold');doc.setFontSize(14);doc.setTextColor(26,26,26);
+  doc.text('Top threats',20,y);y+=8;
+  const top3=threats.slice(0,3);
+  const sevLabels={crit:'CRITICAL',high:'HIGH',med:'MEDIUM',low:'LOW'};
+  const sevColors={crit:[163,36,59],high:[138,80,0],med:[109,92,16],low:[35,78,142]};
+  top3.forEach((t,i)=>{
+    const c=sevColors[t.sev]||[100,100,100];
+    doc.setFillColor(c[0],c[1],c[2]);doc.roundedRect(20,y-3.5,18,5.5,1,1,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(255,255,255);
+    doc.text(sevLabels[t.sev]||'',21,y);
+    doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(26,26,26);
+    doc.text(t.title,42,y);y+=5;
+    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(68,68,68);
+    const dl=doc.splitTextToSize(t.desc,148);doc.text(dl,42,y);y+=dl.length*4+4;
+  });
+
+  // Top 3 immediate actions
+  y+=4;
+  doc.setFont('helvetica','bold');doc.setFontSize(14);doc.setTextColor(26,26,26);
+  doc.text('Immediate actions',20,y);y+=8;
+  const topMit=threats.filter(t=>!mitigated.has(t.title)&&t.mit).slice(0,3);
+  topMit.forEach((t,i)=>{
+    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(26,105,68);
+    doc.text((i+1)+'. '+t.title,20,y);y+=5;
+    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(68,68,68);
+    const ml=doc.splitTextToSize(t.mit,170);doc.text(ml,20,y);y+=ml.length*4+5;
+  });
+
+  // Full threat listing
+  doc.addPage();y=25;
+  doc.setFont('helvetica','bold');doc.setFontSize(18);doc.setTextColor(26,26,26);
+  doc.text('Full threat inventory',20,y);y+=8;
+  doc.setDrawColor(212,214,219);doc.line(20,y,190,y);y+=8;
+
+  threats.forEach(t=>{
+    if(y>255){doc.addPage();y=20;}
+    const c=sevColors[t.sev]||[100,100,100];
+    doc.setFillColor(c[0],c[1],c[2]);doc.roundedRect(20,y-3.5,18,5.5,1,1,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(255,255,255);
+    doc.text(sevLabels[t.sev]||'',21,y);y+=4;
+    doc.setFont('helvetica','bold');doc.setFontSize(10.5);doc.setTextColor(26,26,26);
+    doc.text(t.title+(mitigated.has(t.title)?' [MITIGATED]':''),20,y);y+=4.5;
+    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(68,68,68);
+    const dl=doc.splitTextToSize(t.desc,170);doc.text(dl,20,y);y+=dl.length*4;
+    let refs=[];if(t.owasp)refs.push('OWASP '+t.owasp);if(t.mitre)refs.push('MITRE '+t.mitre);refs.push(t.source);
+    if(t._combo)refs.push('ATTACK CHAIN');
+    doc.setFontSize(8);doc.setTextColor(170,170,170);doc.text(refs.join('  |  '),20,y);y+=4;
+    if(t.mit){
+      doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(26,105,68);doc.text('Mitigation:',20,y);y+=3.5;
+      doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(68,68,68);
+      const ml=doc.splitTextToSize(t.mit,170);doc.text(ml,20,y);y+=ml.length*3.5;
+    }
+    y+=5;
+  });
+
+  // Footers
+  const pc=doc.internal.getNumberOfPages();
+  for(let i=1;i<=pc;i++){
+    doc.setPage(i);doc.setDrawColor(212,214,219);doc.line(20,H-15,190,H-15);
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(170,170,170);
+    doc.text('Erythix - AI Security & Observability',20,H-10);
+    doc.text('contact@erythix.tech',190,H-10,{align:'right'});
+    if(i>1)doc.text('Page '+i,105,H-10,{align:'center'});
+  }
+  doc.save('ai-threat-model-erythix.pdf');
+}
+
+init();
+</script>
+</body>
+</html>
