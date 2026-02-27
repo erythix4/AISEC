@@ -28,7 +28,7 @@ This repository aims to change that by providing a **structured, vendor-neutral,
 - [Talks, Courses & Conferences](#-talks-courses--conferences)
 - [Community & Contribution](#-community--contribution)
 
--  [Erythix ressources ](#-erythix --ressources)
+- [Erythix ressources ](#-erythix--ressources)
 
 ---
 
