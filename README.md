@@ -53,20 +53,20 @@ Understanding how AI systems are attacked in practice.
 
 ### Adversarial Machine Learning
 
-- [Adversarial Robustness Toolbox (ART)](https://github.com/Trusted-AI/adversarial-robustness-toolbox) — IBM's open-source library for ML security (evasion, poisoning, extraction, inference attacks)
-- [CleverHans](https://github.com/cleverhans-lab/cleverhans) — Benchmarking ML model vulnerability to adversarial examples
-- [TextAttack](https://github.com/QData/TextAttack) — Framework for adversarial attacks on NLP models
-- [Counterfit](https://github.com/Azure/counterfit) — Microsoft's tool for assessing ML model security
+- [Adversarial Robustness Toolbox (ART)](https://github.com/Trusted-AI/adversarial-robustness-toolbox)  IBM's open-source library for ML security (evasion, poisoning, extraction, inference attacks)
+- [CleverHans](https://github.com/cleverhans-lab/cleverhans)  Benchmarking ML model vulnerability to adversarial examples
+- [TextAttack](https://github.com/QData/TextAttack)  Framework for adversarial attacks on NLP models
+- [Counterfit](https://github.com/Azure/counterfit)  Microsoft's tool for assessing ML model security
 
 ### Data Poisoning & Model Integrity
 
-- [Nightshade](https://nightshade.cs.uchicago.edu/) — Research on data poisoning attacks against generative models
-- [Sleeper Agents (Anthropic Research)](https://www.anthropic.com/research/sleeper-agents-training-deceptive-llms-that-persist-through-safety-training) — Study on deceptive behaviors persisting through safety training
+- [Nightshade](https://nightshade.cs.uchicago.edu/)  Research on data poisoning attacks against generative models
+- [Sleeper Agents (Anthropic Research)](https://www.anthropic.com/research/sleeper-agents-training-deceptive-llms-that-persist-through-safety-training)  Study on deceptive behaviors persisting through safety training
 
 ### Model Extraction & Inference
 
-- [ML Privacy Meter](https://github.com/privacytrustlab/ml_privacy_meter) — Quantifying privacy risks of ML models
-- [Stolen Model Research (USENIX)](https://www.usenix.org/conference/usenixsecurity16/technical-sessions/presentation/tramer) — Foundational work on model stealing attacks
+- [ML Privacy Meter](https://github.com/privacytrustlab/ml_privacy_meter)  Quantifying privacy risks of ML models
+- [Stolen Model Research (USENIX)](https://www.usenix.org/conference/usenixsecurity16/technical-sessions/presentation/tramer)  Foundational work on model stealing attacks
 
 ---
 
@@ -138,9 +138,9 @@ Navigating the evolving regulatory landscape.
 
 ### International Standards
 
-- [ISO/IEC 42001:2023](https://www.iso.org/standard/81230.html) — AI Management System standard
-- [ISO/IEC 23894:2023](https://www.iso.org/standard/77304.html) — AI Risk Management guidance
-- [NIST AI 100-2](https://www.nist.gov/artificial-intelligence) — Adversarial ML taxonomy and terminology
+- [ISO/IEC 42001:2023](https://www.iso.org/standard/81230.html)  AI Management System standard
+- [ISO/IEC 23894:2023](https://www.iso.org/standard/77304.html)  AI Risk Management guidance
+- [NIST AI 100-2](https://www.nist.gov/artificial-intelligence)  Adversarial ML taxonomy and terminology
 
 ### Responsible AI
 
