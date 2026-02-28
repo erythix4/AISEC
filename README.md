@@ -2,13 +2,13 @@
 
 ### Learn. Understand. Decide.
 
-> A curated collection of **free, open resources** to help engineers, decision-makers, and researchers understand the security challenges of AI systems in production — and make informed choices about how to address them.
+> A curated collection of **free, open resources** to help engineers, decision-makers, and researchers understand the security challenges of AI systems in production  and make informed choices about how to address them.
 
 ---
 
 ##  Why This Repository?
 
-AI is being deployed at scale in critical systems — from industrial environments to public services — often without a clear understanding of the security risks involved. Most existing resources are either vendor-locked, overly academic, or scattered across dozens of sources.
+AI is being deployed at scale in critical systems from industrial environments to public services  often without a clear understanding of the security risks involved. Most existing resources are either vendor-locked, overly academic or scattered across dozens of sources.
 
 This repository aims to change that by providing a **structured, vendor-neutral, and opinionated learning path** through the landscape of AI security. Whether you're a developer shipping ML models, a CISO evaluating risk, or a student entering the field, you'll find practical knowledge here.
 
@@ -91,17 +91,17 @@ Specific risks and defenses for Large Language Models in production.
 
 Securing the ML pipeline from training to deployment.
 
-- [SLSA Framework](https://slsa.dev/) — Supply chain integrity standard, applicable to ML pipelines
-- [ModelScan](https://github.com/protectai/modelscan) — Scan ML models for serialization attacks (pickle exploits, etc.)
-- [Fickling](https://github.com/trailofbits/fickling) — Trail of Bits' Python pickle decompiler and analyzer
-- [Sigstore](https://www.sigstore.dev/) — Signing and verification for software artifacts (models included)
-- [HuggingFace SafeTensors](https://github.com/huggingface/safetensors) — Safe serialization format eliminating arbitrary code execution
-- [ML-BOM (AI/ML Bill of Materials)](https://cyclonedx.org/capabilities/mlbom/) — CycloneDX specification for ML component tracking
+- [SLSA Framework](https://slsa.dev/)  Supply chain integrity standard, applicable to ML pipelines
+- [ModelScan](https://github.com/protectai/modelscan) Scan ML models for serialization attacks (pickle exploits, etc.)
+- [Fickling](https://github.com/trailofbits/fickling)  Trail of Bits' Python pickle decompiler and analyzer
+- [Sigstore](https://www.sigstore.dev/)  Signing and verification for software artifacts (models included)
+- [HuggingFace SafeTensors](https://github.com/huggingface/safetensors)  Safe serialization format eliminating arbitrary code execution
+- [ML-BOM (AI/ML Bill of Materials)](https://cyclonedx.org/capabilities/mlbom/)  CycloneDX specification for ML component tracking
 
 ### Key Reading
 
-- [Securing the ML Supply Chain (Trail of Bits)](https://blog.trailofbits.com/) — Practical risks in model distribution
-- [Compromised PyTorch Dependency (2022)](https://pytorch.org/blog/compromised-nightly-dependency/) — Real-world supply chain attack case study
+- [Securing the ML Supply Chain (Trail of Bits)](https://blog.trailofbits.com/)  Practical risks in model distribution
+- [Compromised PyTorch Dependency (2022)](https://pytorch.org/blog/compromised-nightly-dependency/)  Real-world supply chain attack case study
 
 ---
 
@@ -131,10 +131,10 @@ Navigating the evolving regulatory landscape.
 
 ### European Framework
 
-- [EU AI Act — Official Text](https://artificialintelligenceact.eu/) — Risk-based classification and compliance requirements
-- [ENISA AI Cybersecurity Guidelines](https://www.enisa.europa.eu/) — European cybersecurity agency guidance for AI
-- [France — CNIL AI Guidance](https://www.cnil.fr/en/artificial-intelligence) — GDPR-specific guidance for AI systems
-- [BSI (Germany) — AI Security Recommendations](https://www.bsi.bund.de/) — German federal office for information security
+- [EU AI Act — Official Text](https://artificialintelligenceact.eu/)  Risk-based classification and compliance requirements
+- [ENISA AI Cybersecurity Guidelines](https://www.enisa.europa.eu/)  European cybersecurity agency guidance for AI
+- [France — CNIL AI Guidance](https://www.cnil.fr/en/artificial-intelligence)  GDPR-specific guidance for AI systems
+- [BSI (Germany) — AI Security Recommendations](https://www.bsi.bund.de/)  German federal office for information security
 
 ### International Standards
 
@@ -144,9 +144,9 @@ Navigating the evolving regulatory landscape.
 
 ### Responsible AI
 
-- [Anthropic Research Publications](https://www.anthropic.com/research) — Safety research from Claude's creators
-- [Google Responsible AI Practices](https://ai.google/responsibility/responsible-ai-practices/) — Google's framework for responsible development
-- [Partnership on AI](https://partnershiponai.org/) — Multi-stakeholder AI governance research
+- [Anthropic Research Publications](https://www.anthropic.com/research)  Safety research from Claude's creators
+- [Google Responsible AI Practices](https://ai.google/responsibility/responsible-ai-practices/)  Google's framework for responsible development
+- [Partnership on AI](https://partnershiponai.org/)  Multi-stakeholder AI governance research
 
 ---
 
@@ -170,23 +170,23 @@ Learn by doing. Attack models, break pipelines, defend systems.
 
 ### Free Courses
 
-- [NVIDIA — AI Security Fundamentals](https://www.nvidia.com/en-us/training/) — Self-paced, covers adversarial robustness
-- [Google — Secure AI Framework (SAIF)](https://safety.google/cybersecurity-advancements/saif/) — Conceptual framework for secure AI
-- [Hugging Face — ML for Security Course](https://huggingface.co/learn) — Community-driven learning paths
-- [SANS — AI Security Resources](https://www.sans.org/) — Whitepapers and webcasts (free tier)
+- [NVIDIA — AI Security Fundamentals](https://www.nvidia.com/en-us/training/)  Self-paced, covers adversarial robustness
+- [Google — Secure AI Framework (SAIF)](https://safety.google/cybersecurity-advancements/saif/)  Conceptual framework for secure AI
+- [Hugging Face — ML for Security Course](https://huggingface.co/learn)  Community-driven learning paths
+- [SANS — AI Security Resources](https://www.sans.org/)  Whitepapers and webcasts (free tier)
 
 ### Notable Talks
 
-- **FOSDEM** — Security & HPC devrooms regularly feature AI security content
+- **FOSDEM**  Security & HPC devrooms regularly feature AI security content
 - **BlackHat / DEF CON AI Village** — Cutting-edge offensive AI security research
-- **KubeCon** — MLOps and platform security sessions
-- **OSMC** — Open-source monitoring including AI workload observability
+- **KubeCon**  MLOps and platform security sessions
+- **OSMC**  Open-source monitoring including AI workload observability
 
 ### Podcasts
 
-- [MLSecOps Podcast](https://mlsecops.com/podcast) — Dedicated to ML security operations
-- [Risky Business](https://risky.biz/) — Infosec podcast, regularly covers AI risks
-- [The TWIML AI Podcast](https://twimlai.com/) — ML research with security episodes
+- [MLSecOps Podcast](https://mlsecops.com/podcast)  Dedicated to ML security operations
+- [Risky Business](https://risky.biz/)  Infosec podcast, regularly covers AI risks
+- [The TWIML AI Podcast](https://twimlai.com/)  ML research with security episodes
 
 ---
 
@@ -244,7 +244,7 @@ This is a living repository. Contributions are welcome.
 
 ---
 
-## 📄 License
+##  License
 
 This repository is licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
 
